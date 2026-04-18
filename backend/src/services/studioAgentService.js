@@ -1,0 +1,657 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { keccakJson } from "../lib/hash.js";
+import { AppError } from "../lib/errors.js";
+import {
+  validateAuthorizationIntentInput,
+  validateConfirmAuthorizationInput,
+  validateConfirmOnchainRegistrationInput,
+  validateConfirmPublishInput,
+  validateCreateAgentInput,
+} from "../lib/validation.js";
+
+function buildAgentPackage(agentId, payload, template) {
+  return {
+    agentId,
+    owner: payload.owner,
+    name: payload.name,
+    description: payload.description,
+    template: {
+      id: template.id,
+      name: template.name,
+      category: template.category,
+    },
+    tracks: template.tracks,
+    privacy: payload.privacy,
+    collaborators: payload.collaborators,
+    knowledge: payload.knowledge,
+    policy: payload.policy,
+    workflow: {
+      allowDelegation: payload.policy.allowDelegation,
+      maxStepsPerRun: payload.policy.maxStepsPerRun,
+      roles: template.roles,
+      tools: template.tools,
+      executionModel: "multi_agent_a2a",
+    },
+    requiredSecrets: template.requiredSecrets || [],
+    runtimeTargets: template.runtimeTargets || [],
+  };
+}
+
+function buildMetadataEnvelope(agent) {
+  return {
+    name: agent.name,
+    description: agent.description,
+    templateId: agent.templateId,
+    collaborators: agent.collaborators,
+    privacy: agent.privacy,
+    knowledge: agent.knowledge,
+    tracks: agent.tracks,
+  };
+}
+
+function joinUrl(baseUrl, pathname) {
+  if (!baseUrl) {
+    return pathname;
+  }
+
+  return `${baseUrl.replace(/\/+$/, "")}${pathname}`;
+}
+
+const backendDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+
+export class StudioAgentService {
+  constructor(store, config, storageAdapter, agentRegistryAdapter, auditService, templateService) {
+    this.store = store;
+    this.config = config;
+    this.storageAdapter = storageAdapter;
+    this.agentRegistryAdapter = agentRegistryAdapter;
+    this.auditService = auditService;
+    this.templateService = templateService;
+  }
+
+  async listAgents() {
+    const state = await this.store.readState();
+    return state.agents;
+  }
+
+  async listAgentRuns(agentId) {
+    const state = await this.store.readState();
+    return state.runs.filter((run) => run.agentId === agentId);
+  }
+
+  async getAgent(agentId) {
+    const state = await this.store.readState();
+    return state.agents.find((agent) => agent.id === agentId) || null;
+  }
+
+  async createAgent(input) {
+    const payload = validateCreateAgentInput(input, this.templateService.getTemplateIds());
+    const template = this.templateService.getTemplate(payload.templateId);
+    const agentId = this.store.createId("agent");
+    const agentPackage = buildAgentPackage(agentId, payload, template);
+    const packageHash = keccakJson(agentPackage);
+
+    const agent = await this.store.transaction((state) => {
+      const nextAgent = {
+        id: agentId,
+        owner: payload.owner,
+        name: payload.name,
+        description: payload.description,
+        templateId: payload.templateId,
+        collaborators: payload.collaborators,
+        privacy: payload.privacy,
+        policy: payload.policy,
+        knowledge: payload.knowledge,
+        workflow: agentPackage.workflow,
+        tracks: template.tracks,
+        packageHash,
+        draftPackage: agentPackage,
+        status: "draft",
+        publishState: "local_only",
+        onchainStatus: "not_registered",
+        authorizations: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      state.agents.push(nextAgent);
+      return nextAgent;
+    });
+
+    await this.auditService.recordLocal("agent.draft_created", agent.id, {
+      templateId: agent.templateId,
+      owner: agent.owner,
+      packageHash: agent.packageHash,
+      privacy: agent.privacy,
+    });
+
+    return agent;
+  }
+
+  async getPublishIntent(agentId) {
+    const agent = await this.getAgent(agentId);
+    if (!agent) {
+      throw new AppError("Agent not found", {
+        code: "agent_not_found",
+        statusCode: 404,
+      });
+    }
+
+    if (!agent.draftPackage) {
+      throw new AppError("Agent draft package is missing", {
+        code: "agent_draft_missing",
+        statusCode: 409,
+      });
+    }
+
+    return {
+      agentId: agent.id,
+      owner: agent.owner,
+      packageHash: agent.packageHash,
+      packagePayload: agent.draftPackage,
+      workflow: agent.workflow,
+      recommendedPublishFlow: [
+        "Encrypt the draft package client-side.",
+        "Upload the encrypted package to 0G Storage with the user's wallet signer.",
+        "Optionally anchor ownership or authorization on 0G Chain.",
+        "Let the connected runtime provide any required model or tool secrets instead of storing them on the platform by default.",
+        "Call confirm publish with the resulting storage root and any transaction metadata.",
+      ],
+      targets: {
+        storageIndexerRpc: this.storageAdapter.config.zeroG.storageIndexerRpc,
+        rpcUrl: this.storageAdapter.config.zeroG.rpcUrl,
+      },
+    };
+  }
+
+  async confirmPublishedAgent(agentId, input) {
+    const currentAgent = await this.getAgent(agentId);
+    if (!currentAgent) {
+      throw new AppError("Agent not found", {
+        code: "agent_not_found",
+        statusCode: 404,
+      });
+    }
+
+    const payload = validateConfirmPublishInput(
+      input,
+      currentAgent.owner,
+      currentAgent.packageHash,
+    );
+
+    const agent = await this.store.transaction((state) => {
+      const existing = state.agents.find((item) => item.id === agentId);
+      if (!existing) {
+        return null;
+      }
+
+      existing.status = "published";
+      existing.publishState = payload.publishMode;
+      existing.publishedBy = payload.publisher;
+      existing.storageRoot = payload.storageRoot;
+      existing.storageTxHash = payload.storageTxHash;
+      existing.chainTxHash = payload.chainTxHash;
+      existing.encryptionScheme = payload.encryptionScheme;
+      existing.publishSignature = payload.signature;
+      existing.publishedAt = new Date().toISOString();
+      existing.updatedAt = new Date().toISOString();
+      return existing;
+    });
+
+    await this.auditService.recordLocal("agent.published", agent.id, {
+      packageHash: agent.packageHash,
+      publisher: payload.publisher,
+      storageRoot: payload.storageRoot,
+      chainTxHash: payload.chainTxHash,
+      publishMode: payload.publishMode,
+    });
+
+    return agent;
+  }
+
+  async getOnchainRegistrationIntent(agentId) {
+    const agent = await this.getAgent(agentId);
+    if (!agent) {
+      throw new AppError("Agent not found", {
+        code: "agent_not_found",
+        statusCode: 404,
+      });
+    }
+
+    if (agent.status !== "published" || !agent.storageRoot) {
+      throw new AppError("Agent must be published to 0G Storage before onchain registration", {
+        code: "agent_not_published",
+        statusCode: 409,
+      });
+    }
+
+    const policyHash = keccakJson(agent.policy);
+    const metadataHash = keccakJson(buildMetadataEnvelope(agent));
+    const workflowHash = keccakJson(agent.workflow);
+    const call = this.agentRegistryAdapter.buildRegisterAgentCall({
+      agentId: agent.id,
+      owner: agent.owner,
+      packageHash: agent.packageHash,
+      storageRoot: agent.storageRoot,
+      policyHash,
+      metadataHash,
+      workflowHash,
+    });
+
+    return {
+      agentId: agent.id,
+      owner: agent.owner,
+      contractAddress: call.contractAddress,
+      functionName: call.functionName,
+      args: call.args,
+      calldata: call.calldata,
+      chainId: call.chainId,
+      packageHash: agent.packageHash,
+      storageRoot: agent.storageRoot,
+      policyHash,
+      metadataHash,
+      workflowHash,
+      explorerAddressUrl: `${this.config.zeroG.chainExplorerBaseUrl}${call.contractAddress}`,
+      recommendedFlow: [
+        "Use the owner wallet to call registerAgent on 0G Chain.",
+        "Wait for the transaction to be confirmed on ChainScan.",
+        "Call the backend confirmation endpoint with the tx hash and registry address.",
+      ],
+    };
+  }
+
+  async confirmOnchainRegistration(agentId, input) {
+    const currentAgent = await this.getAgent(agentId);
+    if (!currentAgent) {
+      throw new AppError("Agent not found", {
+        code: "agent_not_found",
+        statusCode: 404,
+      });
+    }
+
+    if (!currentAgent.storageRoot) {
+      throw new AppError("Agent must be published before onchain registration", {
+        code: "agent_not_published",
+        statusCode: 409,
+      });
+    }
+
+    const payload = validateConfirmOnchainRegistrationInput(
+      input,
+      currentAgent.owner,
+      currentAgent.packageHash,
+      currentAgent.storageRoot,
+    );
+    if (
+      this.config.zeroG.agentRegistryAddress &&
+      payload.registryAddress.toLowerCase() !== this.config.zeroG.agentRegistryAddress.toLowerCase()
+    ) {
+      throw new AppError("registryAddress does not match the configured private agent registry", {
+        code: "validation_error",
+        statusCode: 400,
+        details: {
+          registryAddress: payload.registryAddress,
+          expectedRegistryAddress: this.config.zeroG.agentRegistryAddress,
+        },
+      });
+    }
+
+    const policyHash = keccakJson(currentAgent.policy);
+    const metadataHash = keccakJson(buildMetadataEnvelope(currentAgent));
+    const workflowHash = keccakJson(currentAgent.workflow);
+
+    const agent = await this.store.transaction((state) => {
+      const existing = state.agents.find((item) => item.id === agentId);
+      if (!existing) {
+        return null;
+      }
+
+      existing.onchainStatus = "registered";
+      existing.registryAddress = payload.registryAddress;
+      existing.registrationTxHash = payload.chainTxHash;
+      existing.registrationMode = payload.registrationMode;
+      existing.policyHash = policyHash;
+      existing.metadataHash = metadataHash;
+      existing.workflowHash = workflowHash;
+      existing.registeredAt = new Date().toISOString();
+      existing.updatedAt = new Date().toISOString();
+      return existing;
+    });
+
+    await this.auditService.recordLocal("agent.onchain_registered", agent.id, {
+      registryAddress: payload.registryAddress,
+      chainTxHash: payload.chainTxHash,
+      packageHash: agent.packageHash,
+      storageRoot: agent.storageRoot,
+      policyHash,
+      metadataHash,
+      workflowHash,
+    });
+
+    return agent;
+  }
+
+  async listAuthorizations(agentId) {
+    const agent = await this.getAgent(agentId);
+    if (!agent) {
+      throw new AppError("Agent not found", {
+        code: "agent_not_found",
+        statusCode: 404,
+      });
+    }
+
+    return agent.authorizations || [];
+  }
+
+  async createAuthorizationIntent(agentId, input) {
+    const agent = await this.getAgent(agentId);
+    if (!agent) {
+      throw new AppError("Agent not found", {
+        code: "agent_not_found",
+        statusCode: 404,
+      });
+    }
+
+    if (agent.onchainStatus !== "registered") {
+      throw new AppError("Agent must be registered onchain before authorizing usage", {
+        code: "agent_not_registered",
+        statusCode: 409,
+      });
+    }
+
+    const payload = validateAuthorizationIntentInput(input);
+    const scope = {
+      accessMode: payload.accessMode,
+      capabilities: payload.capabilities,
+      label: payload.label,
+    };
+    const scopeHash = keccakJson(scope);
+    const authorizationId = this.store.createId("auth");
+    const call = this.agentRegistryAdapter.buildAuthorizeUsageCall({
+      agentId: agent.id,
+      grantee: payload.grantee,
+      scopeHash,
+      expiresAt: payload.expiresAt,
+    });
+
+    const authorization = await this.store.transaction((state) => {
+      const existing = state.agents.find((item) => item.id === agentId);
+      if (!existing) {
+        return null;
+      }
+
+      existing.authorizations = existing.authorizations || [];
+      const existingRecord = existing.authorizations.find(
+        (item) => item.grantee.toLowerCase() === payload.grantee.toLowerCase(),
+      );
+      const record = existingRecord || {
+        createdAt: new Date().toISOString(),
+      };
+
+      record.id = authorizationId;
+      record.grantee = payload.grantee;
+      record.accessMode = payload.accessMode;
+      record.capabilities = payload.capabilities;
+      record.label = payload.label;
+      record.expiresAt = payload.expiresAt;
+      record.scopeHash = scopeHash;
+      record.status = "intent_prepared";
+      record.contractAddress = call.contractAddress;
+      record.authorizer = null;
+      record.chainTxHash = null;
+      record.registryAddress = null;
+      record.authorizedAt = null;
+      record.updatedAt = new Date().toISOString();
+
+      if (!existingRecord) {
+        existing.authorizations.push(record);
+      }
+
+      existing.updatedAt = new Date().toISOString();
+      return record;
+    });
+
+    await this.auditService.recordLocal("agent.authorization_intent_created", agent.id, {
+      authorizationId,
+      grantee: payload.grantee,
+      scopeHash,
+      expiresAt: payload.expiresAt,
+      accessMode: payload.accessMode,
+    });
+
+    return {
+      authorization,
+      intent: {
+        agentId: agent.id,
+        contractAddress: call.contractAddress,
+        functionName: call.functionName,
+        args: call.args,
+        calldata: call.calldata,
+        chainId: call.chainId,
+        scopeHash,
+        explorerAddressUrl: `${this.config.zeroG.chainExplorerBaseUrl}${call.contractAddress}`,
+      },
+    };
+  }
+
+  async confirmAuthorization(agentId, authorizationId, input) {
+    const currentAgent = await this.getAgent(agentId);
+    if (!currentAgent) {
+      throw new AppError("Agent not found", {
+        code: "agent_not_found",
+        statusCode: 404,
+      });
+    }
+
+    const currentAuthorization = (currentAgent.authorizations || []).find(
+      (item) => item.id === authorizationId,
+    );
+    if (!currentAuthorization) {
+      throw new AppError("Authorization intent not found", {
+        code: "authorization_not_found",
+        statusCode: 404,
+      });
+    }
+
+    const payload = validateConfirmAuthorizationInput(
+      input,
+      currentAgent.owner,
+      currentAuthorization.scopeHash,
+    );
+    if (
+      this.config.zeroG.agentRegistryAddress &&
+      payload.registryAddress.toLowerCase() !== this.config.zeroG.agentRegistryAddress.toLowerCase()
+    ) {
+      throw new AppError("registryAddress does not match the configured private agent registry", {
+        code: "validation_error",
+        statusCode: 400,
+        details: {
+          registryAddress: payload.registryAddress,
+          expectedRegistryAddress: this.config.zeroG.agentRegistryAddress,
+        },
+      });
+    }
+
+    const authorization = await this.store.transaction((state) => {
+      const existing = state.agents.find((item) => item.id === agentId);
+      if (!existing) {
+        return null;
+      }
+
+      for (const item of existing.authorizations || []) {
+        if (
+          item.grantee.toLowerCase() === currentAuthorization.grantee.toLowerCase() &&
+          item.id !== authorizationId
+        ) {
+          item.status = "superseded";
+          item.updatedAt = new Date().toISOString();
+        }
+      }
+
+      const record = (existing.authorizations || []).find((item) => item.id === authorizationId);
+      if (!record) {
+        return null;
+      }
+
+      record.status = "active";
+      record.authorizer = payload.authorizer;
+      record.chainTxHash = payload.chainTxHash;
+      record.registryAddress = payload.registryAddress;
+      record.authorizedAt = new Date().toISOString();
+      record.updatedAt = new Date().toISOString();
+      existing.updatedAt = new Date().toISOString();
+      return record;
+    });
+
+    await this.auditService.recordLocal("agent.authorization_confirmed", agentId, {
+      authorizationId,
+      grantee: authorization.grantee,
+      scopeHash: authorization.scopeHash,
+      chainTxHash: payload.chainTxHash,
+      registryAddress: payload.registryAddress,
+    });
+
+    return authorization;
+  }
+
+  async getExportManifest(agentId, options = {}) {
+    const agent = await this.getAgent(agentId);
+    if (!agent) {
+      throw new AppError("Agent not found", {
+        code: "agent_not_found",
+        statusCode: 404,
+      });
+    }
+
+    const authorizations = agent.authorizations || [];
+    const activeAuthorizations = authorizations.filter((authorization) => authorization.status === "active");
+    const baseUrl = options.baseUrl || "";
+    const openClawServerDefinition = {
+      command: "npm",
+      args: ["run", "mcp"],
+      cwd: backendDirectory,
+      env: {
+        ZEROG_NETWORK: this.config.zeroG.network,
+        ZEROG_RPC_URL: this.config.zeroG.rpcUrl,
+        ZEROG_CHAIN_ID: String(this.config.zeroG.chainId || ""),
+        ZEROG_STORAGE_INDEXER_RPC: this.config.zeroG.storageIndexerRpc,
+        PRIVATE_AGENT_REGISTRY_ADDRESS: this.config.zeroG.agentRegistryAddress || "<registry-address>",
+        ZEROG_COMPUTE_API_KEY: "<user-runtime-0g-compute-api-key>",
+        ZEROG_COMPUTE_API_BASE: "<user-runtime-0g-compute-api-base>",
+        ZEROG_COMPUTE_MODEL: "<user-runtime-0g-compute-model>",
+        ZEROG_COMPUTE_REQUIRE_TEE: "false",
+      },
+    };
+
+    return {
+      manifestVersion: "2026-04-18",
+      exportedAt: new Date().toISOString(),
+      agent: {
+        id: agent.id,
+        name: agent.name,
+        description: agent.description,
+        owner: agent.owner,
+        status: agent.status,
+        templateId: agent.templateId,
+        tracks: agent.tracks,
+        packageHash: agent.packageHash,
+        privacy: agent.privacy,
+        workflow: agent.workflow,
+      },
+      storage: {
+        storageRoot: agent.storageRoot || null,
+        storageTxHash: agent.storageTxHash || null,
+      },
+      onchain: {
+        status: agent.onchainStatus,
+        registryAddress: agent.registryAddress || this.config.zeroG.agentRegistryAddress || null,
+        registrationTxHash: agent.registrationTxHash || null,
+        activeAuthorizationCount: activeAuthorizations.length,
+      },
+      runtime: {
+        ownershipModel: "runtime_owned_secrets",
+        targets: agent.draftPackage?.runtimeTargets || [],
+        requiredSecrets: agent.draftPackage?.requiredSecrets || [],
+        recommendedCredentialSource: "user_runtime",
+        instructions: [
+          "Keep model and tool API keys in the connected runtime or user environment by default.",
+          "Use workspace-scoped or platform-managed secrets only for explicit hosted-runtime deployments.",
+          "Record which secret classes were supplied for each run without persisting raw secret values.",
+        ],
+      },
+      api: {
+        getAgent: joinUrl(baseUrl, `/api/agents/${agent.id}`),
+        listRuns: joinUrl(baseUrl, `/api/agents/${agent.id}/runs`),
+        startRun: joinUrl(baseUrl, `/api/agents/${agent.id}/runs`),
+        authorizations: joinUrl(baseUrl, `/api/agents/${agent.id}/authorizations`),
+      },
+      mcp: {
+        serverType: "stdio",
+        secretInjection: {
+          supported: true,
+          ownershipModel: "runtime_owned_secrets",
+          requiredSecrets: agent.draftPackage?.requiredSecrets || [],
+        },
+        toolCalls: [
+          {
+            name: "studio.get_agent",
+            arguments: {
+              agentId: agent.id,
+            },
+          },
+          {
+            name: "studio.start_run",
+            arguments: {
+              agentId: agent.id,
+              runtime: {
+                credentialSource: "user_runtime",
+                executionMode: "zerog_direct_api",
+                providedSecretKeys: ["ZEROG_COMPUTE_API_KEY"],
+              },
+            },
+          },
+          {
+            name: "studio.list_agent_runs",
+            arguments: {
+              agentId: agent.id,
+            },
+          },
+        ],
+      },
+      openclaw: {
+        docsVerified: {
+          transport: "stdio",
+          savedServerDefinitionFields: ["command", "args", "env", "cwd"],
+        },
+        preferredExecutionMode: "zerog_direct_api",
+        rationale:
+          "For OpenClaw-style local runtimes, direct 0G API mode avoids injecting a wallet private key into the runtime process. Broker mode remains possible but is operationally heavier.",
+        savedServerDefinition: openClawServerDefinition,
+        mcpSetExample: `openclaw mcp set private-agent-studio '${JSON.stringify(openClawServerDefinition)}'`,
+        directApiProfile: {
+          executionMode: "zerog_direct_api",
+          requiredRuntimeSecrets: ["ZEROG_COMPUTE_API_KEY", "ZEROG_COMPUTE_API_BASE", "ZEROG_COMPUTE_MODEL"],
+        },
+        brokerProfile: {
+          executionMode: "zerog_broker",
+          requiredRuntimeSecrets: ["PRIVATE_KEY"],
+          notes: [
+            "Broker mode uses wallet-signed 0G Compute requests.",
+            "Use broker mode only when you want the runtime to manage its own 0G wallet and provider funding flow.",
+          ],
+        },
+      },
+      activeAuthorizations: activeAuthorizations.map((authorization) => ({
+        id: authorization.id,
+        grantee: authorization.grantee,
+        accessMode: authorization.accessMode,
+        capabilities: authorization.capabilities,
+        label: authorization.label,
+        expiresAt: authorization.expiresAt,
+        scopeHash: authorization.scopeHash,
+        chainTxHash: authorization.chainTxHash || null,
+      })),
+    };
+  }
+}
