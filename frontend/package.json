@@ -13,9 +13,10 @@
     "@fontsource/ibm-plex-mono": "^5.2.6",
     "@fontsource/plus-jakarta-sans": "^5.2.6",
     "@phosphor-icons/react": "^2.1.10",
-    "ethers": "^6.16.0",
+    "ethers": "^6.13.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-router-dom": "^7.14.2",
     "vite-plugin-node-polyfills": "^0.26.0"
   },
   "devDependencies": {
