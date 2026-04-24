@@ -64,6 +64,7 @@ Why this maps cleanly:
 - [`ARCHITECTURE.md`](/home/divij/vincent/agentvault/ARCHITECTURE.md): product and system diagrams
 - [`backend/`](/home/divij/vincent/agentvault/backend): backend runtime and API
 - [`contracts/`](/home/divij/vincent/agentvault/contracts): onchain registry / anchoring package
+- [`frontend/`](/home/divij/vincent/agentvault/frontend): React operator console for templates, draft creation, publish handoff, registry confirmation, authorizations, and workflow runs
 - [`/.env.example`](/home/divij/vincent/agentvault/.env.example): runtime configuration
 
 ## What Is Real Today
@@ -144,18 +145,29 @@ npm run mcp
 ```
 
 9. Check `GET /health` or the MCP tool `studio.health` for runtime readiness.
-10. Create agent drafts without a signer.
-11. Use `publish-intent` to get the package payload, then publish with the user wallet.
-12. Confirm publish through the API or MCP before treating the agent as a published asset.
-13. Use `onchain-registration-intent` to get the owner-wallet call data for `PrivateAgentRegistry.registerAgent(...)`.
-14. Confirm the onchain registration after the transaction lands.
-15. Use authorization intents to grant API or MCP usage rights to other wallets or runtimes.
+10. Install and start the frontend:
+
+```bash
+cd /home/divij/vincent/agentvault/frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+11. Point the frontend at the backend with `VITE_API_BASE_URL` if you are not using the default `http://127.0.0.1:4000`.
+12. Connect an injected wallet in the operator console and sync it into the draft owner field before publishing.
+13. Use the publish panel to upload the draft package to `0G Storage` directly from the browser wallet.
+14. Confirm publish through the API or MCP before treating the agent as a published asset.
+15. Use `onchain-registration-intent` to get the owner-wallet call data for `PrivateAgentRegistry.registerAgent(...)`.
+16. Confirm the onchain registration after the transaction lands.
+17. Use authorization intents to grant API or MCP usage rights to other wallets or runtimes.
 
 ## Current Verification
 
 - Contract package compiles successfully with Hardhat.
 - Backend imports successfully with the real 0G SDK dependencies installed.
 - MCP server imports and responds to protocol initialization and tool listing.
+- Frontend builds successfully with Vite, is wired to the live backend API surface, and now supports browser-wallet upload to `0G Storage`.
 - Backend readiness shows signer, registry, and direct-compute capability separately.
 - Draft creation no longer depends on a backend private key.
 - The builder lifecycle now supports draft -> publish -> onchain registration -> onchain authorization.

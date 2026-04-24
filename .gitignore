@@ -6,5 +6,6 @@ contracts/.env
 backend/node_modules
 backend/.env
 frontend/node_modules
+frontend/dist
 frontend/.next
 frontend/tsconfig.tsbuildinfo
