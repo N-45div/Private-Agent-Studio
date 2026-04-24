@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #121212;
+  background:
+    radial-gradient(circle at top left, rgba(31, 79, 209, 0.12), transparent 30%),
+    radial-gradient(circle at right center, rgba(201, 75, 44, 0.13), transparent 28%),
+    #f3f0e8;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at top left, rgba(31, 79, 209, 0.12), transparent 30%),
+    radial-gradient(circle at right center, rgba(201, 75, 44, 0.13), transparent 28%),
+    #f3f0e8;
+  color: #121212;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.3;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+  background-size: 120px 120px;
+  mask-image: radial-gradient(circle at center, black, transparent 80%);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image:
+    radial-gradient(#121212 0.7px, transparent 0.7px),
+    radial-gradient(#121212 0.7px, transparent 0.7px);
+  background-position: 0 0, 6px 6px;
+  background-size: 12px 12px;
+}
+
+#root {
+  isolation: isolate;
+}
+
+.section-shell {
+  @apply rounded-[2rem] bg-black/5 p-1.5 ring-1 ring-black/5 shadow-shell;
+}
+
+.section-core {
+  @apply rounded-[calc(2rem-0.375rem)] bg-mist shadow-[inset_0_1px_1px_rgba(255,255,255,0.75)];
+}
+
+.signal-dot {
+  @apply inline-flex h-2.5 w-2.5 rounded-full;
+  box-shadow: 0 0 0 6px rgba(201, 75, 44, 0.12);
+}
+
+.reveal {
+  animation: reveal 800ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.reveal-delay-1 {
+  animation-delay: 110ms;
+}
+
+.reveal-delay-2 {
+  animation-delay: 190ms;
+}
+
+.reveal-delay-3 {
+  animation-delay: 270ms;
+}
+
+.reveal-delay-4 {
+  animation-delay: 350ms;
+}
+
+.thin-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(18, 18, 18, 0.16);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
