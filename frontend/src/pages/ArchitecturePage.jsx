@@ -33,49 +33,96 @@ function Panel({ eyebrow, title, body, children, dark = false }) {
 export function ArchitecturePage() {
   return (
     <div className="space-y-24 pb-24 pt-4">
-      <section className="grid gap-6 xl:grid-cols-[1.06fr_0.94fr]">
+      <section className="section-shell">
+        <div className="section-core overflow-hidden bg-[#121212] px-6 py-8 text-white md:px-8 md:py-10">
+          <div className="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="space-y-6">
+              <div className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/45">Architecture / Core split</div>
+              <h1 className="max-w-4xl text-4xl font-semibold tracking-[-0.07em] md:text-6xl md:leading-[0.92]">
+                The product has three distinct surfaces: narrative, wallet publish, and private runtime orchestration.
+              </h1>
+              <p className="max-w-[64ch] text-sm leading-8 text-white/62 md:text-base">
+                That split is intentional. The site should explain the system clearly, the studio should feel operational,
+                and the runtime should protect the boundary between private execution context and verifiable state.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {[
+                ["Builder UI", "Drafts, policy, role graph, and secret declarations stay editable until wallet publish."],
+                ["0G Storage", "Holds package payloads, knowledge references, traces, and audit artifacts."],
+                ["0G Chain", "Anchors ownership, package hash, storage root, and usage rights."],
+                ["0G Compute", "Runs planner, specialist, and executor roles inside the A2A workflow."],
+              ].map(([title, body], index) => (
+                <div
+                  key={title}
+                  className={`rounded-[1.5rem] border p-5 ${index % 2 === 0 ? "border-white/10 bg-white/[0.06]" : "border-[#c94b2c]/20 bg-[#c94b2c]/10"}`}
+                >
+                  <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">System node</div>
+                  <div className="mt-4 text-xl font-semibold tracking-[-0.04em] text-white">{title}</div>
+                  <p className="mt-3 text-sm leading-7 text-white/62">{body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <Panel
-          eyebrow="Architecture"
-          title="The system is split into a marketing control plane, a wallet-mediated publish path, and a private A2A runtime."
-          body="That separation is intentional. Users need a readable product story, operators need a usable control surface, and the runtime needs a clear boundary between private data and verifiable state."
+          eyebrow="Boundary model"
+          title="What stays private vs what becomes verifiable is explicit."
+          body="The product should never blur this line. Private prompts and memory are not the same thing as public proof of ownership and usage authorization."
         >
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
+          <div className="mt-8 grid gap-4">
             {[
-              ["Builder UI", "Creates drafts, shapes policy, and hands off publish actions to the wallet."],
-              ["0G Storage", "Stores the package, knowledge references, traces, and audit payloads."],
-              ["0G Chain", "Anchors ownership, package hash, usage rights, and registry state."],
-              ["0G Compute", "Executes planner, specialist, and executor roles inside the workflow runtime."],
-            ].map(([title, body]) => (
-              <div key={title} className="rounded-[1.35rem] border border-black/10 bg-white/75 p-4">
-                <div className="text-lg font-semibold tracking-[-0.04em] text-ink">{title}</div>
-                <p className="mt-3 text-sm leading-7 text-black/60">{body}</p>
+              [Lock, "Private execution context", "Prompts, memory, uploaded files, and intermediate A2A reasoning stay in the private path."],
+              [Fingerprint, "Verifiable registry state", "Package hash anchors, storage roots, usage grants, and registry ownership become public proofs."],
+              [Radio, "Runtime delivery boundary", "API and MCP clients consume the same control plane without owning the registry or storage lifecycle."],
+            ].map(([Icon, title, body], index) => (
+              <div
+                key={title}
+                className={`grid gap-4 rounded-[1.45rem] border p-4 md:grid-cols-[56px_1fr] ${index === 1 ? "border-accent/20 bg-accent/10" : "border-black/10 bg-white/75"}`}
+              >
+                <div className={`grid h-14 w-14 place-items-center rounded-[1.1rem] ${index === 1 ? "bg-accent text-white" : "bg-ink text-white"}`}>
+                  <Icon size={18} weight="light" />
+                </div>
+                <div>
+                  <div className="text-lg font-semibold tracking-[-0.04em] text-ink">{title}</div>
+                  <p className="mt-2 text-sm leading-7 text-black/60">{body}</p>
+                </div>
               </div>
             ))}
           </div>
         </Panel>
 
-        <Panel
-          eyebrow="Boundary model"
-          title="Reasoning stays private. Ownership and permissions become public proofs."
-          body="The product should never pretend that everything is confidential onchain. The correct split is private execution context plus public verification rails."
-          dark
-        >
-          <div className="mt-8 grid gap-4">
-            {[
-              [Lock, "Private inputs", "Prompts, memory, uploaded documents, intermediate role messages, and run traces."],
-              [Fingerprint, "Verifiable outputs", "Package hash anchors, storage roots, registration state, and authorization scope hashes."],
-              [Radio, "Runtime integration", "OpenClaw or API clients provide execution context and credential references without owning the registry state."],
-            ].map(([Icon, title, body]) => (
-              <div key={title} className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
-                <div className="flex items-center gap-3">
-                  <Icon size={18} weight="light" className="text-white/70" />
-                  <div className="text-lg font-semibold tracking-[-0.04em] text-white">{title}</div>
+        <div className="section-shell">
+          <div className="section-core overflow-hidden bg-[#151515] px-6 py-8 text-white md:px-8">
+            <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/45">A2A workflow map</div>
+            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] md:text-4xl">Planner, specialist, executor.</h2>
+            <p className="mt-4 max-w-[58ch] text-sm leading-7 text-white/62 md:text-base">
+              The runtime should show role separation visually. One prompt pretending to be an entire operating system is not a serious agent product.
+            </p>
+
+            <div className="mt-8 grid gap-4">
+              {[
+                ["01", "Planner", "Breaks the objective into bounded tasks and identifies risk or approval boundaries."],
+                ["02", "Specialist", "Works against the package context and returns structured intermediate output."],
+                ["03", "Executor", "Shapes the final response, suggested actions, and trace payload for persistence."],
+              ].map(([step, title, body], index) => (
+                <div key={step} className={`rounded-[1.45rem] border p-5 ${index === 1 ? "border-white/10 bg-white/[0.05] md:translate-x-10" : "border-white/10 bg-black/20"}`}>
+                  <div className="grid gap-3 md:grid-cols-[72px_1fr] md:items-start">
+                    <div className="font-mono text-[11px] uppercase tracking-[0.24em] text-white/45">{step}</div>
+                    <div>
+                      <div className="text-xl font-semibold tracking-[-0.04em] text-white">{title}</div>
+                      <p className="mt-2 text-sm leading-7 text-white/62">{body}</p>
+                    </div>
+                  </div>
                 </div>
-                <p className="mt-3 text-sm leading-7 text-white/62">{body}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </Panel>
+        </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.94fr_1.06fr]">
