@@ -50,6 +50,12 @@ export const api = {
   getAgent(agentId) {
     return request(`/api/agents/${agentId}`);
   },
+  updateAgentWorkflow(agentId, payload) {
+    return request(`/api/agents/${agentId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
   getExportManifest(agentId) {
     return request(`/api/agents/${agentId}/export-manifest`);
   },
@@ -82,6 +88,15 @@ export const api = {
   },
   confirmAuthorization(agentId, authorizationId, payload) {
     return request(`/api/agents/${agentId}/authorizations/${authorizationId}/confirm`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  getRevokeIntent(agentId, authorizationId) {
+    return request(`/api/agents/${agentId}/authorizations/${authorizationId}/revoke-intent`);
+  },
+  confirmRevocation(agentId, authorizationId, payload) {
+    return request(`/api/agents/${agentId}/authorizations/${authorizationId}/revoke`, {
       method: "POST",
       body: JSON.stringify(payload),
     });

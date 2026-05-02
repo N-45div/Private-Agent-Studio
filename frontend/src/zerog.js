@@ -1,4 +1,5 @@
-import { BrowserProvider } from "ethers";
+import { BrowserProvider, Contract } from "ethers";
+import { privateAgentRegistryAbi } from "./privateAgentRegistryAbi.js";
 
 function getEthereum() {
   if (typeof window === "undefined" || !window.ethereum) {
@@ -21,6 +22,37 @@ async function createBrowserSigner() {
     address,
     chainId: Number(network.chainId),
   };
+}
+
+function normalizeHashValue(value) {
+  if (!value) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "function") {
+    return normalizeHashValue(value());
+  }
+
+  if (Array.isArray(value)) {
+    return normalizeHashValue(value[0]);
+  }
+
+  if (typeof value === "object") {
+    return normalizeHashValue(
+      value.hash ||
+        value.transactionHash ||
+        value.txHash ||
+        value.rootHash ||
+        value.root ||
+        value.value,
+    );
+  }
+
+  return String(value);
 }
 
 export async function connectWallet() {
@@ -106,15 +138,33 @@ export async function uploadJsonPackage({
 
   const receipt =
     tx && "rootHash" in tx
-      ? { rootHash: tx.rootHash, txHash: tx.txHash }
+      ? { rootHash: normalizeHashValue(tx.rootHash), txHash: normalizeHashValue(tx.txHash) }
       : {
-          rootHash: tx?.rootHashes?.[0] || tree?.rootHash?.() || null,
-          txHash: tx?.txHashes?.[0] || null,
+          rootHash: normalizeHashValue(tx?.rootHashes || tree?.rootHash) || null,
+          txHash: normalizeHashValue(tx?.txHashes || tx?.hash || tx?.transactionHash) || null,
         };
 
   return {
     ...wallet,
     ...receipt,
     fileName,
+  };
+}
+
+export async function writePrivateAgentRegistry({
+  contractAddress,
+  functionName,
+  args,
+}) {
+  const wallet = await createBrowserSigner();
+  const contract = new Contract(contractAddress, privateAgentRegistryAbi, wallet.signer);
+  const tx = await contract[functionName](...args);
+  const receipt = await tx.wait();
+
+  return {
+    ...wallet,
+    contractAddress,
+    functionName,
+    txHash: receipt?.hash || tx.hash,
   };
 }

@@ -4,21 +4,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        canvas: "#f3f0e8",
-        ink: "#121212",
-        shell: "#e6dfd2",
-        accent: "#c94b2c",
-        signal: "#1f4fd1",
-        mist: "#f7f3eb",
-        line: "rgba(18, 18, 18, 0.1)",
+        canvas: "#090b0a",
+        shell: "#111514",
+        panel: "#151a18",
+        panelStrong: "#1a201d",
+        panelSoft: "#0f1312",
+        ink: "#f3f2ec",
+        muted: "#b8beb4",
+        soft: "#8e948b",
+        accent: "#c57a4a",
+        line: "rgba(243, 242, 236, 0.1)",
       },
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', "sans-serif"],
         mono: ['"IBM Plex Mono"', "monospace"],
       },
       boxShadow: {
-        diffusion: "0 28px 60px -28px rgba(18, 18, 18, 0.16)",
-        shell: "0 26px 50px -30px rgba(18, 18, 18, 0.18)",
+        diffusion: "0 36px 90px -38px rgba(0, 0, 0, 0.65)",
+        shell: "0 32px 80px -40px rgba(0, 0, 0, 0.72)",
       },
       transitionTimingFunction: {
         premium: "cubic-bezier(0.32, 0.72, 0, 1)",
