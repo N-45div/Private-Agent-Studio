@@ -164,6 +164,19 @@ export function validateRunInput(input) {
   };
 }
 
+export function validateUpdateWorkflowInput(input) {
+  assert(input && typeof input === "object", "Request body must be an object");
+
+  const roleOrder = stringList(input.roleOrder, "roleOrder");
+  assert(roleOrder.length > 0, "roleOrder must contain at least one role id", {
+    roleOrder,
+  });
+
+  return {
+    roleOrder,
+  };
+}
+
 export function validateConfirmPublishInput(input, expectedOwner, expectedPackageHash) {
   assert(input && typeof input === "object", "Request body must be an object");
 
@@ -291,6 +304,23 @@ export function validateConfirmAuthorizationInput(input, expectedOwner, expected
   return {
     authorizer,
     scopeHash,
+    chainTxHash: requireString(input.chainTxHash, "chainTxHash"),
+    registryAddress: requireAddress(input.registryAddress, "registryAddress"),
+  };
+}
+
+export function validateConfirmRevocationInput(input, expectedOwner) {
+  assert(input && typeof input === "object", "Request body must be an object");
+
+  const revoker = requireAddress(input.revoker, "revoker");
+  assert(
+    revoker.toLowerCase() === expectedOwner.toLowerCase(),
+    "revoker must match the agent owner",
+    { revoker, expectedOwner },
+  );
+
+  return {
+    revoker,
     chainTxHash: requireString(input.chainTxHash, "chainTxHash"),
     registryAddress: requireAddress(input.registryAddress, "registryAddress"),
   };

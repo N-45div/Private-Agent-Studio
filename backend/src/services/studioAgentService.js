@@ -7,7 +7,9 @@ import {
   validateConfirmAuthorizationInput,
   validateConfirmOnchainRegistrationInput,
   validateConfirmPublishInput,
+  validateConfirmRevocationInput,
   validateCreateAgentInput,
+  validateUpdateWorkflowInput,
 } from "../lib/validation.js";
 
 function buildAgentPackage(agentId, payload, template) {
@@ -124,6 +126,69 @@ export class StudioAgentService {
       owner: agent.owner,
       packageHash: agent.packageHash,
       privacy: agent.privacy,
+    });
+
+    return agent;
+  }
+
+  async updateWorkflow(agentId, input) {
+    const currentAgent = await this.getAgent(agentId);
+    if (!currentAgent) {
+      throw new AppError("Agent not found", {
+        code: "agent_not_found",
+        statusCode: 404,
+      });
+    }
+
+    if (currentAgent.status !== "draft" || !currentAgent.draftPackage) {
+      throw new AppError("Only draft agents can be edited in the builder", {
+        code: "agent_not_editable",
+        statusCode: 409,
+      });
+    }
+
+    const payload = validateUpdateWorkflowInput(input);
+    const currentRoles = currentAgent.workflow?.roles || [];
+    const currentRoleIds = currentRoles.map((role) => role.id);
+
+    if (
+      payload.roleOrder.length !== currentRoleIds.length ||
+      payload.roleOrder.some((roleId) => !currentRoleIds.includes(roleId))
+    ) {
+      throw new AppError("roleOrder must match the current workflow role ids", {
+        code: "validation_error",
+        statusCode: 400,
+        details: {
+          roleOrder: payload.roleOrder,
+          currentRoleIds,
+        },
+      });
+    }
+
+    const orderedRoles = payload.roleOrder.map((roleId) =>
+      currentRoles.find((role) => role.id === roleId),
+    );
+
+    const agent = await this.store.transaction((state) => {
+      const existing = state.agents.find((item) => item.id === agentId);
+      if (!existing) {
+        return null;
+      }
+
+      const nextDraftPackage = structuredClone(existing.draftPackage);
+      nextDraftPackage.workflow.roles = orderedRoles;
+      const nextPackageHash = keccakJson(nextDraftPackage);
+
+      existing.workflow.roles = orderedRoles;
+      existing.draftPackage = nextDraftPackage;
+      existing.packageHash = nextPackageHash;
+      existing.updatedAt = new Date().toISOString();
+      return existing;
+    });
+
+    await this.auditService.recordLocal("agent.workflow_reordered", agent.id, {
+      roleOrder: payload.roleOrder,
+      packageHash: agent.packageHash,
     });
 
     return agent;
@@ -508,6 +573,124 @@ export class StudioAgentService {
       authorizationId,
       grantee: authorization.grantee,
       scopeHash: authorization.scopeHash,
+      chainTxHash: payload.chainTxHash,
+      registryAddress: payload.registryAddress,
+    });
+
+    return authorization;
+  }
+
+  async getRevocationIntent(agentId, authorizationId) {
+    const agent = await this.getAgent(agentId);
+    if (!agent) {
+      throw new AppError("Agent not found", {
+        code: "agent_not_found",
+        statusCode: 404,
+      });
+    }
+
+    const authorization = (agent.authorizations || []).find((item) => item.id === authorizationId);
+    if (!authorization) {
+      throw new AppError("Authorization not found", {
+        code: "authorization_not_found",
+        statusCode: 404,
+      });
+    }
+
+    if (authorization.status !== "active") {
+      throw new AppError("Only active authorizations can be revoked", {
+        code: "authorization_not_active",
+        statusCode: 409,
+      });
+    }
+
+    const call = this.agentRegistryAdapter.buildRevokeUsageCall({
+      agentId: agent.id,
+      grantee: authorization.grantee,
+    });
+
+    return {
+      authorizationId: authorization.id,
+      agentId: agent.id,
+      grantee: authorization.grantee,
+      contractAddress: call.contractAddress,
+      functionName: call.functionName,
+      args: call.args,
+      calldata: call.calldata,
+      chainId: call.chainId,
+      explorerAddressUrl: `${this.config.zeroG.chainExplorerBaseUrl}${call.contractAddress}`,
+      recommendedFlow: [
+        "Use the owner wallet to call revokeUsage on 0G Chain.",
+        "Wait for the transaction to be confirmed on ChainScan.",
+        "Call the backend revocation confirmation endpoint with the tx hash and registry address.",
+      ],
+    };
+  }
+
+  async confirmRevocation(agentId, authorizationId, input) {
+    const currentAgent = await this.getAgent(agentId);
+    if (!currentAgent) {
+      throw new AppError("Agent not found", {
+        code: "agent_not_found",
+        statusCode: 404,
+      });
+    }
+
+    const currentAuthorization = (currentAgent.authorizations || []).find(
+      (item) => item.id === authorizationId,
+    );
+    if (!currentAuthorization) {
+      throw new AppError("Authorization not found", {
+        code: "authorization_not_found",
+        statusCode: 404,
+      });
+    }
+
+    if (currentAuthorization.status !== "active") {
+      throw new AppError("Only active authorizations can be revoked", {
+        code: "authorization_not_active",
+        statusCode: 409,
+      });
+    }
+
+    const payload = validateConfirmRevocationInput(input, currentAgent.owner);
+    if (
+      this.config.zeroG.agentRegistryAddress &&
+      payload.registryAddress.toLowerCase() !== this.config.zeroG.agentRegistryAddress.toLowerCase()
+    ) {
+      throw new AppError("registryAddress does not match the configured private agent registry", {
+        code: "validation_error",
+        statusCode: 400,
+        details: {
+          registryAddress: payload.registryAddress,
+          expectedRegistryAddress: this.config.zeroG.agentRegistryAddress,
+        },
+      });
+    }
+
+    const authorization = await this.store.transaction((state) => {
+      const existing = state.agents.find((item) => item.id === agentId);
+      if (!existing) {
+        return null;
+      }
+
+      const record = (existing.authorizations || []).find((item) => item.id === authorizationId);
+      if (!record) {
+        return null;
+      }
+
+      record.status = "revoked";
+      record.revoker = payload.revoker;
+      record.revocationTxHash = payload.chainTxHash;
+      record.revokedAt = new Date().toISOString();
+      record.updatedAt = new Date().toISOString();
+      existing.updatedAt = new Date().toISOString();
+      return record;
+    });
+
+    await this.auditService.recordLocal("agent.authorization_revoked", agentId, {
+      authorizationId,
+      grantee: authorization.grantee,
       chainTxHash: payload.chainTxHash,
       registryAddress: payload.registryAddress,
     });

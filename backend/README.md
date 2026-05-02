@@ -52,6 +52,8 @@ Copy values from [`/home/divij/vincent/agentvault/.env.example`](/home/divij/vin
 - `GET /api/agents/:agentId/authorizations`
 - `POST /api/agents/:agentId/authorizations/intents`
 - `POST /api/agents/:agentId/authorizations/:authorizationId/confirm`
+- `GET /api/agents/:agentId/authorizations/:authorizationId/revoke-intent`
+- `POST /api/agents/:agentId/authorizations/:authorizationId/revoke`
 - `GET /api/agents/:agentId/runs`
 - `POST /api/agents/:agentId/runs`
 - `GET /api/runs/:runId`
@@ -72,7 +74,7 @@ Copy values from [`/home/divij/vincent/agentvault/.env.example`](/home/divij/vin
 4. For published agents, use `GET /api/agents/:agentId/onchain-registration-intent`, execute the call with the owner wallet, then confirm through `POST /api/agents/:agentId/onchain-registration`.
 5. For usage grants, create an authorization intent, execute `authorizeUsage(...)` with the owner wallet, then confirm it through the API.
 6. For server-side compute, configure either broker mode or direct API mode.
-7. Use `GET /api/diagnostics/compute` before live runs if broker-mode inference is failing. Add `?ack=true` to force provider acknowledgement checks.
+7. Use `GET /api/diagnostics/compute` before live runs if inference is failing. Without compute credentials it returns a non-fatal readiness payload; actual runs still fail explicitly until broker wallet or direct API credentials are configured. Add `?ack=true` to force provider acknowledgement checks when broker mode is configured.
 8. In direct API mode, add `?probe=true` to verify the configured `app-sk-...` key and list available models.
 
 Execution-mode behavior:

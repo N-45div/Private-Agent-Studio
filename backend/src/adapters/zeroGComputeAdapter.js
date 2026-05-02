@@ -241,6 +241,26 @@ export class ZeroGComputeAdapter {
       };
     }
 
+    if (!this.config.zeroG.privateKey) {
+      return {
+        mode: "broker",
+        configuredProvider: this.config.zeroG.computeProvider || null,
+        fallbackProviders: this.config.zeroG.computeFallbackProviders || [],
+        credentialsPresent: false,
+        ready: false,
+        error: "Missing PRIVATE_KEY for broker-mode 0G Compute diagnostics.",
+        diagnostics: (this.config.zeroG.computeFallbackProviders || []).map((providerAddress) => ({
+          source: "docs_fallback",
+          providerAddress,
+          endpoint: null,
+          model: null,
+          metadataValid: false,
+          acknowledged: false,
+          error: "broker_wallet_not_configured",
+        })),
+      };
+    }
+
     const candidates = await this.listProviderCandidates();
     const diagnostics = [];
     for (const candidate of candidates) {

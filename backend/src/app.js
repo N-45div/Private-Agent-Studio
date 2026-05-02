@@ -39,6 +39,8 @@ export async function handleRequest(request, response) {
         service: "private-agent-studio-backend",
         timestamp: new Date().toISOString(),
         network: config.zeroG.network,
+        chainId: config.zeroG.chainId,
+        rpcUrl: config.zeroG.rpcUrl,
         readiness: {
           hasPrivateKey: Boolean(config.zeroG.privateKey),
           hasRegistry: Boolean(config.zeroG.registryAddress),
@@ -103,16 +105,22 @@ export async function handleRequest(request, response) {
 
     const agentMatch = path.match(/^\/api\/agents\/([^/]+)$/);
     if (agentMatch) {
-      if (request.method !== "GET") {
-        return methodNotAllowed(response, ["GET"]);
+      if (request.method === "GET") {
+        const agent = await studioAgentService.getAgent(agentMatch[1]);
+        if (!agent) {
+          return sendJson(response, 404, { error: "agent_not_found" });
+        }
+
+        return sendJson(response, 200, { agent });
       }
 
-      const agent = await studioAgentService.getAgent(agentMatch[1]);
-      if (!agent) {
-        return sendJson(response, 404, { error: "agent_not_found" });
+      if (request.method === "PATCH") {
+        const body = await readJson(request);
+        const agent = await studioAgentService.updateWorkflow(agentMatch[1], body);
+        return sendJson(response, 200, { agent });
       }
 
-      return sendJson(response, 200, { agent });
+      return methodNotAllowed(response, ["GET", "PATCH"]);
     }
 
     const agentExportManifestMatch = path.match(/^\/api\/agents\/([^/]+)\/export-manifest$/);
@@ -215,6 +223,38 @@ export async function handleRequest(request, response) {
       const authorization = await studioAgentService.confirmAuthorization(
         agentAuthorizationConfirmMatch[1],
         agentAuthorizationConfirmMatch[2],
+        body,
+      );
+      return sendJson(response, 200, { authorization });
+    }
+
+    const agentAuthorizationRevokeIntentMatch = path.match(
+      /^\/api\/agents\/([^/]+)\/authorizations\/([^/]+)\/revoke-intent$/,
+    );
+    if (agentAuthorizationRevokeIntentMatch) {
+      if (request.method !== "GET") {
+        return methodNotAllowed(response, ["GET"]);
+      }
+
+      const revokeIntent = await studioAgentService.getRevocationIntent(
+        agentAuthorizationRevokeIntentMatch[1],
+        agentAuthorizationRevokeIntentMatch[2],
+      );
+      return sendJson(response, 200, { revokeIntent });
+    }
+
+    const agentAuthorizationRevokeMatch = path.match(
+      /^\/api\/agents\/([^/]+)\/authorizations\/([^/]+)\/revoke$/,
+    );
+    if (agentAuthorizationRevokeMatch) {
+      if (request.method !== "POST") {
+        return methodNotAllowed(response, ["POST"]);
+      }
+
+      const body = await readJson(request);
+      const authorization = await studioAgentService.confirmRevocation(
+        agentAuthorizationRevokeMatch[1],
+        agentAuthorizationRevokeMatch[2],
         body,
       );
       return sendJson(response, 200, { authorization });

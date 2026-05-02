@@ -271,6 +271,35 @@ export function listStudioTools() {
       },
     },
     {
+      name: "studio.get_revocation_intent",
+      description: "Return the contract call data for revoking an active usage authorization on 0G Chain.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          agentId: { type: "string" },
+          authorizationId: { type: "string" },
+        },
+        required: ["agentId", "authorizationId"],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: "studio.confirm_revocation",
+      description: "Confirm that the owner wallet revoked an active authorization onchain.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          agentId: { type: "string" },
+          authorizationId: { type: "string" },
+          revoker: { type: "string" },
+          chainTxHash: { type: "string" },
+          registryAddress: { type: "string" },
+        },
+        required: ["agentId", "authorizationId", "revoker", "chainTxHash", "registryAddress"],
+        additionalProperties: false,
+      },
+    },
+    {
       name: "studio.start_run",
       description: "Run a private multi-agent workflow for an agent package through 0G Compute.",
       inputSchema: {
@@ -402,6 +431,21 @@ export async function callStudioTool(name, args, container) {
       case "studio.confirm_authorization":
         return jsonText({
           authorization: await studioAgentService.confirmAuthorization(
+            args?.agentId,
+            args?.authorizationId,
+            args || {},
+          ),
+        });
+      case "studio.get_revocation_intent":
+        return jsonText({
+          revokeIntent: await studioAgentService.getRevocationIntent(
+            args?.agentId,
+            args?.authorizationId,
+          ),
+        });
+      case "studio.confirm_revocation":
+        return jsonText({
+          authorization: await studioAgentService.confirmRevocation(
             args?.agentId,
             args?.authorizationId,
             args || {},

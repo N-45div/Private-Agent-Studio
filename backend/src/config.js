@@ -5,6 +5,11 @@ const network = process.env.ZEROG_NETWORK || "testnet";
 const rpcUrl =
   process.env.ZEROG_RPC_URL ||
   (network === "mainnet" ? "https://evmrpc.0g.ai" : "https://evmrpc-testnet.0g.ai");
+const chainId = process.env.ZEROG_CHAIN_ID
+  ? Number(process.env.ZEROG_CHAIN_ID)
+  : network === "mainnet"
+    ? 16661
+    : 16602;
 const defaultComputeFallbackProviders =
   network === "mainnet"
     ? []
@@ -27,7 +32,7 @@ export const config = {
   dataFile: path.join(process.cwd(), "data", "state.json"),
   zeroG: {
     network,
-    chainId: process.env.ZEROG_CHAIN_ID ? Number(process.env.ZEROG_CHAIN_ID) : null,
+    chainId,
     rpcUrl,
     privateKey: process.env.PRIVATE_KEY || "",
     explorerBaseUrl:
