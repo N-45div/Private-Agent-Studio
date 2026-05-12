@@ -109,7 +109,7 @@ function MarketingFrame() {
 
 function StudioFrame() {
   return (
-    <div className="relative min-h-[100dvh] overflow-hidden bg-[#090b0a]">
+    <div className="relative min-h-[100dvh] overflow-hidden bg-[#080b0b]">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-accent focus:px-4 focus:py-3 focus:text-sm focus:text-[#120e0b]"
@@ -117,9 +117,9 @@ function StudioFrame() {
         Skip to content
       </a>
 
-      <div className="absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(197,122,74,0.16),transparent_58%)]" />
+      <div className="absolute inset-x-0 top-0 h-72 bg-[linear-gradient(180deg,rgba(41,82,76,0.22),rgba(8,11,11,0))]" />
 
-      <div className="relative min-h-[100dvh] w-full px-3 pb-10 md:px-4 lg:px-5">
+      <div className="relative mx-auto min-h-[100dvh] w-full max-w-[1720px] px-4 pb-12 md:px-7 lg:px-10 2xl:px-12">
         <AppHeader />
 
         <main id="main-content" className="pt-1">

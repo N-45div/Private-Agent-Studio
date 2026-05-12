@@ -421,25 +421,27 @@ function PhaseButton({ phase, active, onClick }) {
       type="button"
       onClick={onClick}
       className={classNames(
-        "flex w-full items-center justify-between rounded-[1rem] border px-4 py-3 text-left transition-all duration-500 ease-premium active:scale-[0.98]",
+        "group flex w-full items-center gap-3 rounded-[1rem] border px-3 py-3 text-left transition-all duration-500 ease-premium active:scale-[0.98]",
         active
           ? "border-accent/30 bg-accent/10 shadow-[0_20px_40px_-28px_rgba(197,122,74,0.4)]"
           : "border-transparent bg-transparent hover:border-white/10 hover:bg-white/[0.04]",
       )}
     >
-      <span className="flex items-center gap-3">
-        <span className={classNames(
-          "grid h-9 w-9 place-items-center rounded-[0.9rem] border",
-          active ? "border-accent/30 bg-accent text-[#120e0b]" : "border-white/10 bg-black/20 text-accent",
-        )}>
-          <Icon size={16} weight="light" />
-        </span>
-        <span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">Phase</span>
-          <span className="mt-1 block text-sm font-semibold text-ink">{phase.label}</span>
-        </span>
+      <span className={classNames(
+        "grid h-10 w-10 shrink-0 place-items-center rounded-[0.9rem] border",
+        active ? "border-accent/30 bg-accent text-[#120e0b]" : "border-white/10 bg-black/20 text-accent",
+      )}>
+        <Icon size={17} weight="light" />
       </span>
-      <ArrowUpRight size={16} weight="light" className={active ? "text-accent" : "text-soft"} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-ink">{phase.label}</span>
+        <span className="mt-1 block truncate text-xs text-soft">{phase.description}</span>
+      </span>
+      <ArrowUpRight
+        size={15}
+        weight="light"
+        className={classNames("shrink-0 transition-transform duration-500 group-hover:translate-x-0.5", active ? "text-accent" : "text-soft")}
+      />
     </button>
   );
 }
@@ -465,19 +467,20 @@ function ContextStrip({
     "Choose a template or agent package to start using the workspace.";
 
   return (
-    <div className="rounded-[1.2rem] border border-white/10 bg-[#0f1312] px-4 py-4 shadow-[0_20px_48px_-32px_rgba(0,0,0,0.72)]">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="space-y-4">
+      <div className="workspace-card px-5 py-5 md:px-6">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
         <div className="min-w-0 space-y-1">
           <div className="eyebrow">Builder workspace</div>
           <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <h1 className="truncate text-xl font-semibold tracking-[-0.05em] text-ink md:text-2xl">{title}</h1>
+            <h1 className="truncate text-2xl font-semibold tracking-[-0.05em] text-ink md:text-3xl">{title}</h1>
             <StatusBadge value={selectedAgent?.status || "draft"} />
           </div>
-          <p className="max-w-[72ch] text-sm leading-6 text-muted">{subtitle}</p>
+          <p className="max-w-[82ch] text-sm leading-7 text-muted">{subtitle}</p>
         </div>
 
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[15rem]">
+        <div className="grid gap-3 sm:grid-cols-[minmax(15rem,1fr)_auto_auto] sm:items-end xl:min-w-[34rem]">
+          <div className="min-w-0">
             <label className="grid gap-2">
               <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">Active package</span>
               <select
@@ -504,14 +507,15 @@ function ContextStrip({
           </button>
         </div>
       </div>
+      </div>
 
-      <div className="mt-4 grid gap-3 border-t border-white/10 pt-4 sm:grid-cols-2 xl:grid-cols-6">
-        <InlineStat label="Wallet" value={walletState.connected ? formatShortAddress(walletState.address) : "Not connected"} />
-        <InlineStat label="Network" value={health?.network || "Unavailable"} />
-        <InlineStat label="Active grants" value={String(activeAuthorizations)} />
-        <InlineStat label="Runs" value={String(totalRuns)} />
-        <InlineStat label="Compute" value={computeSummary(health)} />
-        <InlineStat label="Package" value={selectedAgent?.templateId || selectedTemplate?.id || "Unselected"} />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <div className="status-tile"><InlineStat label="Wallet" value={walletState.connected ? formatShortAddress(walletState.address) : "Not connected"} /></div>
+        <div className="status-tile"><InlineStat label="Network" value={health?.network || "Unavailable"} /></div>
+        <div className="status-tile"><InlineStat label="Active grants" value={String(activeAuthorizations)} /></div>
+        <div className="status-tile"><InlineStat label="Runs" value={String(totalRuns)} /></div>
+        <div className="status-tile"><InlineStat label="Compute" value={computeSummary(health)} /></div>
+        <div className="status-tile"><InlineStat label="Package" value={selectedAgent?.templateId || selectedTemplate?.id || "Unselected"} /></div>
       </div>
     </div>
   );
@@ -586,21 +590,21 @@ function WorkflowGraph({
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1.28fr_0.72fr]">
-      <div className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#0b0f0e]">
-        <div className="mb-5 flex items-center justify-between gap-4">
-          <div className="border-b border-white/10 px-5 py-4">
+    <div className="space-y-5">
+      <div className="overflow-hidden rounded-[1.25rem] border border-white/10 bg-[#0b0f0e]">
+        <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 md:px-6">
+          <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-soft">Execution model</div>
             <div className="mt-2 text-lg font-semibold tracking-[-0.04em] text-ink">
               {workflow.executionModel || "multi_agent_a2a"}
             </div>
           </div>
-          <div className="mr-4 grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.03]">
+          <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[0.03]">
             <ShareNetwork size={18} weight="light" className="text-accent" />
           </div>
         </div>
 
-        <div className="relative grid gap-4 bg-[linear-gradient(rgba(243,242,236,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(243,242,236,0.03)_1px,transparent_1px)] bg-[size:34px_34px] px-5 pb-5 pt-1 lg:grid-cols-3">
+        <div className="relative grid gap-5 bg-[linear-gradient(rgba(243,242,236,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(243,242,236,0.03)_1px,transparent_1px)] bg-[size:34px_34px] p-5 md:p-6 lg:grid-cols-3">
           {orderedRoles.map((role, index) => (
             <div key={role.id} className="relative">
               {index < orderedRoles.length - 1 ? (
@@ -658,7 +662,7 @@ function WorkflowGraph({
         </div>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)]">
         <div className="metric-card">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">Node inspector</div>
@@ -818,7 +822,6 @@ export function StudioPage() {
           startTransition(() => {
             loadAgentWorkbench(firstAgentId);
           });
-          setActivePhase("publish");
         }
       } catch (error) {
         if (isActive) {
@@ -1554,7 +1557,7 @@ export function StudioPage() {
   const filteredAgentRuns = selectedAgentState.runs.slice().reverse();
 
   return (
-    <div className="space-y-4 pb-16 pt-2">
+    <div className="space-y-6 pb-20 pt-2">
       <div className="min-w-0">
         <ContextStrip
           agents={agents}
@@ -1582,9 +1585,9 @@ export function StudioPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 xl:grid-cols-[16rem_minmax(0,1fr)]">
+        <div className="grid gap-6 xl:grid-cols-[15rem_minmax(0,1fr)] 2xl:grid-cols-[15rem_minmax(0,1fr)]">
           <aside className="space-y-4 xl:sticky xl:top-[6.6rem] xl:h-[calc(100dvh-8rem)]">
-            <div className="rail-panel p-3">
+            <div className="rail-panel">
               <div className="space-y-2">
                 {studioPhases.map((phase) => (
                   <PhaseButton
@@ -1601,9 +1604,9 @@ export function StudioPage() {
           <div className="min-w-0 space-y-6">
 
         {activePhase === "build" ? (
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_27rem]">
-            <div className="min-w-0 space-y-4">
-              <div className="studio-panel p-4">
+          <section className="space-y-6">
+            <div className="min-w-0 space-y-6">
+              <div className="studio-panel p-5 md:p-6">
                 <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                   <div>
                     <div className="eyebrow">Choose a starting agent</div>
@@ -1620,7 +1623,7 @@ export function StudioPage() {
                     />
                   </div>
                 </div>
-                <div className="thin-scrollbar mt-4 grid gap-3 overflow-auto pb-1 lg:grid-cols-3">
+                <div className="thin-scrollbar mt-5 grid gap-4 overflow-auto pb-1 lg:grid-cols-3">
                   {filteredTemplates.map((template) => (
                     <button
                       key={template.id}
@@ -1630,7 +1633,7 @@ export function StudioPage() {
                         setCreateForm((current) => ({ ...current, templateId: template.id }));
                       }}
                       className={classNames(
-                        "min-h-[9.5rem] rounded-[1.1rem] border p-4 text-left transition-all duration-500",
+                        "min-h-[11rem] rounded-[1.1rem] border p-4 text-left transition-all duration-500",
                         selectedTemplateId === template.id
                           ? "border-accent/35 bg-accent/10 shadow-[0_22px_48px_-34px_rgba(197,122,74,0.55)]"
                           : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]",
@@ -1653,7 +1656,7 @@ export function StudioPage() {
                 </div>
               </div>
 
-              <div className="studio-panel p-4">
+              <div className="studio-panel p-5 md:p-6">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                   <div className="min-w-0">
                     <div className="eyebrow">Builder canvas</div>
@@ -1683,8 +1686,8 @@ export function StudioPage() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-[1.45rem] border border-white/10 bg-[#101413] shadow-[0_28px_70px_-42px_rgba(0,0,0,0.78)]">
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
+              <div className="canvas-shell">
+                <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 md:px-6">
                   <div>
                     <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">Workflow canvas</div>
                     <div className="mt-1 text-sm font-semibold text-ink">Planner, specialist, and executor topology</div>
@@ -1696,7 +1699,7 @@ export function StudioPage() {
                     <ShareNetwork size={18} weight="light" className="text-accent" />
                   </div>
                 </div>
-                <div className="p-5">
+                <div className="p-5 md:p-6">
                   <WorkflowGraph
                     workflow={activeWorkflow}
                     requiredSecrets={activeRequiredSecrets}
@@ -1710,7 +1713,7 @@ export function StudioPage() {
               </div>
             </div>
 
-            <div className="xl:sticky xl:top-[6.6rem] xl:h-fit">
+            <div>
               <form onSubmit={handleCreateAgent} className="studio-panel overflow-hidden">
                 <div className="border-b border-white/10 bg-white/[0.025] px-5 py-4">
                   <div className="flex items-start justify-between gap-4">
@@ -1727,7 +1730,7 @@ export function StudioPage() {
                   </p>
                 </div>
 
-                <div className="grid gap-4 p-5">
+                <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(21rem,0.7fr)] 2xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.55fr)]">
                   <div className="rounded-[1.1rem] border border-accent/25 bg-accent/10 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -1762,7 +1765,7 @@ export function StudioPage() {
                     </FormField>
                   </div>
 
-                  <details className="rounded-[1.1rem] border border-white/10 bg-black/15">
+                  <details className="rounded-[1.1rem] border border-white/10 bg-black/15 lg:col-span-2">
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 marker:content-none">
                       <span>
                         <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">Optional</span>
@@ -1814,7 +1817,7 @@ export function StudioPage() {
                 </div>
 
                 <div className="border-t border-white/10 bg-black/20 p-5">
-                  <button type="submit" className="pill-primary w-full justify-between group">
+                  <button type="submit" className="pill-primary w-full justify-center gap-4 group sm:w-auto">
                     {pending.create ? "Creating draft..." : "Create draft package"}
                     <span className="grid h-8 w-8 place-items-center rounded-full bg-black/10 transition-transform duration-700 ease-premium group-hover:-translate-y-[1px] group-hover:translate-x-1">
                       <ArrowUpRight size={16} weight="light" />
