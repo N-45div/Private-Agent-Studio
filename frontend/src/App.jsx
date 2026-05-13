@@ -66,8 +66,7 @@ function MarketingFrame() {
         Skip to content
       </a>
 
-      <div className="absolute left-[8%] top-[8rem] h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
-      <div className="absolute right-[5%] top-[16rem] h-80 w-80 rounded-full bg-accent/8 blur-3xl" />
+      <div className="absolute inset-x-0 top-0 h-[32rem] bg-[linear-gradient(180deg,rgba(41,82,76,0.22),rgba(9,11,10,0))]" />
 
       <div className="relative mx-auto w-full max-w-[1440px] px-4 pb-20 md:px-6 lg:px-10">
         <AppHeader />

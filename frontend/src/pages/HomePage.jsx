@@ -2,7 +2,6 @@ import { NavLink } from "react-router-dom";
 import {
   ArrowRight,
   BracketsCurly,
-  CubeFocus,
   Fingerprint,
   Lock,
   Radio,
@@ -11,222 +10,192 @@ import {
   TerminalWindow,
 } from "@phosphor-icons/react";
 
-function StoryBlock({ eyebrow, title, body, tone = "default", children, className = "" }) {
-  const toneClass =
-    tone === "accent"
-      ? "section-core section-core-accent text-ink"
-      : tone === "strong"
-        ? "section-core section-core-strong text-ink"
-        : "section-core text-ink";
+const lifecycle = [
+  ["01", "Build", "Start from a private agent template and shape the planner, specialist, and executor workflow."],
+  ["02", "Publish", "Use the owner wallet to publish the encrypted package to 0G Storage."],
+  ["03", "Register", "Anchor ownership, package hash, and storage root on 0G Chain."],
+  ["04", "Authorize", "Grant scoped access to wallets, apps, or MCP runtimes."],
+  ["05", "Run", "Execute the private workflow through the same control plane."],
+];
 
+const stack = [
+  [Lock, "0G Storage", "Encrypted packages, memory references, and run traces."],
+  [TerminalWindow, "0G Compute", "Planner, specialist, and executor role execution."],
+  [Fingerprint, "0G Chain", "Ownership, package proof, and usage rights."],
+  [Radio, "API + MCP", "One lifecycle for browser users and external runtimes."],
+];
+
+function FlowStep({ step, title, body }) {
   return (
-    <div className={`section-shell ${className}`}>
-      <section className={`${toneClass} h-full`}>
-        <div className="eyebrow">{eyebrow}</div>
-        <h2 className="mt-3 max-w-[15ch] text-3xl font-semibold tracking-[-0.06em] md:text-4xl">{title}</h2>
-        <p className="mt-4 max-w-[62ch] copy-muted">{body}</p>
-        {children}
-      </section>
+    <div className="flow-step">
+      <div className="flow-index">{step}</div>
+      <div>
+        <div className="text-base font-semibold tracking-[-0.03em] text-ink">{title}</div>
+        <p className="mt-2 text-sm leading-6 text-muted">{body}</p>
+      </div>
     </div>
   );
 }
 
-function MiniNode({ step, title, body }) {
+function StackRow({ icon: Icon, title, body }) {
   return (
-    <div className="metric-card">
-      <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-soft">{step}</div>
-      <div className="mt-4 text-xl font-semibold tracking-[-0.04em] text-ink">{title}</div>
-      <p className="mt-3 copy-subtle">{body}</p>
+    <div className="stack-row">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-accent">
+        <Icon size={18} weight="light" />
+      </div>
+      <div>
+        <div className="text-base font-semibold tracking-[-0.03em] text-ink">{title}</div>
+        <p className="mt-1 text-sm leading-6 text-muted">{body}</p>
+      </div>
+    </div>
+  );
+}
+
+function StudioPreview() {
+  return (
+    <div className="studio-preview">
+      <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+        <div>
+          <div className="eyebrow">Studio flow</div>
+          <div className="mt-1 text-lg font-semibold tracking-[-0.04em] text-ink">Private Research Copilot</div>
+        </div>
+        <div className="signal-dot" />
+      </div>
+
+      <div className="grid gap-5 p-5 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="space-y-3">
+          {["Build", "Publish", "Register", "Authorize", "Run"].map((item, index) => (
+            <div key={item} className={index === 0 ? "preview-phase preview-phase-active" : "preview-phase"}>
+              <span className="font-mono text-[10px] text-soft">{String(index + 1).padStart(2, "0")}</span>
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-5">
+          <div className="eyebrow">Workflow canvas</div>
+          <div className="mt-5 grid gap-3">
+            {["Planner", "Specialist", "Executor"].map((role) => (
+              <div key={role} className="rounded-[1rem] border border-white/10 bg-white/[0.04] px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-ink">{role}</span>
+                  <span className="node-port" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 rounded-full border border-accent/20 bg-accent/10 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
+            Wallet-published package
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 export function HomePage() {
   return (
-    <div className="space-y-24 pb-24 pt-4">
-      <section className="grid min-h-[100dvh] items-center gap-8 pb-12 xl:grid-cols-[1.06fr_0.94fr]">
-        <div className="space-y-8">
-          <div className="glass-pill inline-flex items-center gap-2 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.28em] text-soft">
+    <div className="pb-20 pt-3">
+      <section className="grid min-h-[calc(100dvh-8rem)] items-center gap-10 py-8 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)]">
+        <div className="max-w-4xl space-y-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.24em] text-soft">
             <Sparkle size={14} weight="light" />
-            Track 1 + Track 5 + Track 3
+            Private agent lifecycle on 0G
           </div>
 
           <div className="space-y-6">
-            <h1 className="max-w-5xl text-5xl font-semibold tracking-[-0.09em] text-ink md:text-7xl md:leading-[0.9]">
-              Build private multi-agent products on 0G with a control plane that looks engineered, not improvised.
+            <h1 className="max-w-[12ch] text-5xl font-semibold tracking-[-0.08em] text-ink md:text-7xl md:leading-[0.92]">
+              Private Agent Studio
             </h1>
-            <p className="max-w-[62ch] text-base leading-8 text-muted md:text-lg">
-              Private Agent Studio is a wallet-mediated builder for encrypted agent packages, onchain ownership rails,
-              and A2A workflow delivery through API and MCP. The product is shaped around the real 0G split: storage,
-              chain, compute, and private runtime execution.
+            <p className="max-w-[66ch] text-lg leading-8 text-muted">
+              Build private multi-agent workflows visually, publish encrypted packages through the owner wallet,
+              register proof onchain, authorize usage, and run the workflow through one control plane.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-4">
             <NavLink to="/studio" className="pill-primary group">
-              Open operator console
+              Open Studio
               <span className="grid h-8 w-8 place-items-center rounded-full bg-black/10 transition-transform duration-700 ease-premium group-hover:translate-x-1">
                 <ArrowRight size={16} weight="light" />
               </span>
             </NavLink>
             <NavLink to="/architecture" className="pill-secondary">
-              Review architecture
+              Architecture
             </NavLink>
           </div>
-        </div>
 
-        <div className="section-shell md:translate-y-10">
-          <div className="section-core section-core-strong grid gap-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="eyebrow">System posture</div>
-                <div className="mt-2 text-2xl font-semibold tracking-[-0.05em] text-ink">Control plane / runtime split</div>
-              </div>
-              <div className="signal-dot" />
+          <div className="grid gap-3 border-t border-white/10 pt-6 sm:grid-cols-3">
+            <div>
+              <div className="text-2xl font-semibold tracking-[-0.04em] text-ink">Track 1</div>
+              <div className="mt-1 text-sm text-muted">Agent infrastructure</div>
             </div>
-
-            <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-              <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-5">
-                <div className="eyebrow">Builder side</div>
-                <div className="mt-4 space-y-3">
-                  {[
-                    "Draft packages stay editable until wallet publish.",
-                    "Owner wallet writes package payloads to 0G Storage.",
-                    "Registry state is anchored separately from private memory.",
-                  ].map((line) => (
-                    <div key={line} className="rounded-[1.2rem] border border-white/8 bg-white/[0.035] px-4 py-3 text-sm leading-7 text-muted">
-                      {line}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-4">
-                <div className="rounded-[1.5rem] border border-accent/25 bg-accent/10 p-5">
-                  <div className="eyebrow text-[#d8a786]">Runtime side</div>
-                  <div className="mt-3 text-xl font-semibold tracking-[-0.04em] text-ink">Planner, specialist, executor</div>
-                  <p className="mt-3 copy-subtle">
-                    A2A roles stay explicit. One prompt pretending to be the whole system is not the product.
-                  </p>
-                </div>
-                <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-                  <div className="eyebrow">Delivery</div>
-                  <div className="mt-3 text-xl font-semibold tracking-[-0.04em] text-ink">API + MCP</div>
-                  <p className="mt-3 copy-subtle">
-                    Apps and OpenClaw-style runtimes consume the same control plane instead of parallel integration stacks.
-                  </p>
-                </div>
-              </div>
+            <div>
+              <div className="text-2xl font-semibold tracking-[-0.04em] text-ink">Track 5</div>
+              <div className="mt-1 text-sm text-muted">Privacy rails</div>
+            </div>
+            <div>
+              <div className="text-2xl font-semibold tracking-[-0.04em] text-ink">Track 3</div>
+              <div className="mt-1 text-sm text-muted">Agent economy</div>
             </div>
           </div>
+        </div>
+
+        <StudioPreview />
+      </section>
+
+      <section className="landing-band">
+        <div className="max-w-3xl">
+          <div className="eyebrow">Product flow</div>
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-ink md:text-5xl">
+            One lifecycle instead of scattered agent tools.
+          </h2>
+        </div>
+        <div className="mt-10 grid gap-3 lg:grid-cols-5">
+          {lifecycle.map(([step, title, body]) => (
+            <FlowStep key={step} step={step} title={title} body={body} />
+          ))}
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.06fr_0.94fr]">
-        <StoryBlock
-          eyebrow="Product thesis"
-          title="This is not a generic agent builder."
-          body="The product matters because it handles the part other builders skip: private storage, owner-controlled publish, usage rights, and runtime portability."
-          tone="strong"
-        >
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <MiniNode step="Track 1" title="Agentic infrastructure" body="Multi-agent orchestration, role graphs, runtime handoff, and backend lifecycle flows." />
-            <MiniNode step="Track 5" title="Privacy rails" body="Encrypted package publish, private memory, controlled execution context, and explicit proof boundaries." />
-            <MiniNode step="Track 3" title="Agent economy" body="Owned agent assets, grants, licensable delivery, and export manifests for external runtimes." />
-            <MiniNode step="Runtime" title="Operational surface" body="One studio for builders and operators instead of a marketing page pretending to be software." />
-          </div>
-        </StoryBlock>
+      <section className="mt-8 grid gap-8 py-8 xl:grid-cols-[0.9fr_1.1fr] xl:items-start">
+        <div className="max-w-2xl space-y-5">
+          <div className="eyebrow">Why it matters</div>
+          <h2 className="text-3xl font-semibold tracking-[-0.05em] text-ink md:text-5xl">
+            Private creation with public proof.
+          </h2>
+          <p className="text-base leading-8 text-muted">
+            Private Agent Studio keeps prompts, memory, uploaded knowledge, and intermediate role messages in the private path.
+            Ownership, package roots, and usage grants become verifiable rails on 0G.
+          </p>
+          <NavLink to="/studio" className="inline-flex items-center gap-2 text-sm font-semibold text-accent">
+            Start in the builder
+            <ArrowRight size={15} weight="light" />
+          </NavLink>
+        </div>
 
-        <StoryBlock
-          eyebrow="Trust boundary"
-          title="Private reasoning stays private. Ownership becomes public proof."
-          body="The system is strongest when it is honest about the split. Prompts, memory, uploads, and intermediate role messages stay in the private path. Ownership, package roots, and grants become verifiable rails."
-          tone="accent"
-        >
-          <div className="mt-8 grid gap-4">
-            {[
-              { icon: Lock, title: "Private inputs", body: "Prompt payloads, uploaded documents, memory references, and A2A intermediate state." },
-              { icon: Fingerprint, title: "Verifiable outputs", body: "Package hashes, storage roots, registration state, and authorization scope anchors." },
-              { icon: Radio, title: "Runtime boundary", body: "API clients and OpenClaw-style runtimes invoke the same product surface without owning state." },
-            ].map((item) => (
-              <div key={item.title} className="rounded-[1.35rem] border border-white/10 bg-black/20 p-4">
-                <div className="flex items-center gap-3">
-                  <item.icon size={18} weight="light" className="text-accent" />
-                  <div className="text-lg font-semibold tracking-[-0.04em] text-ink">{item.title}</div>
-                </div>
-                <p className="mt-3 copy-subtle">{item.body}</p>
-              </div>
-            ))}
-          </div>
-        </StoryBlock>
+        <div className="stack-list">
+          {stack.map(([Icon, title, body]) => (
+            <StackRow key={title} icon={Icon} title={title} body={body} />
+          ))}
+        </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <StoryBlock
-          eyebrow="Lifecycle"
-          title="The publish path follows the actual 0G capability split."
-          body="Draft locally, publish with the owner wallet, register state onchain, authorize use, then run A2A workflows through API or MCP."
-        >
-          <div className="mt-8 space-y-3">
-            {[
-              ["01", "Draft package", "Workflow graph, policy, roles, and secret declarations stay local until publish."],
-              ["02", "Publish from wallet", "The browser wallet pushes the package payload to 0G Storage and returns root and transaction hash."],
-              ["03", "Anchor registry state", "The owner confirms package hash and storage root through the chain registry."],
-              ["04", "Authorize usage", "Wallets or runtimes receive explicit grants with scoped capabilities."],
-              ["05", "Run on 0G", "Planner, specialist, and executor execute through the same backend control plane."],
-            ].map(([step, title, body]) => (
-              <div key={step} className="metric-card grid gap-4 md:grid-cols-[64px_1fr]">
-                <div className="font-mono text-[11px] uppercase tracking-[0.24em] text-soft">{step}</div>
-                <div>
-                  <div className="text-lg font-semibold tracking-[-0.04em] text-ink">{title}</div>
-                  <p className="mt-2 copy-subtle">{body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </StoryBlock>
-
-        <div className="grid gap-6">
-          <StoryBlock
-            eyebrow="Current build"
-            title="The backend already exposes the real rails."
-            body="Draft creation, publish intents, owner confirmation, registry anchoring, usage grants, export manifests, diagnostics, and run orchestration are live parts of the product."
-            tone="strong"
-          >
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {[
-                [CubeFocus, "Draft creation"],
-                [ShieldCheck, "Compute diagnostics"],
-                [BracketsCurly, "Export manifest"],
-                [TerminalWindow, "A2A runtime"],
-              ].map(([Icon, label]) => (
-                <div key={label} className="rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-4">
-                  <Icon size={18} weight="light" className="text-accent" />
-                  <div className="mt-4 text-base font-semibold tracking-[-0.03em] text-ink">{label}</div>
-                </div>
-              ))}
-            </div>
-          </StoryBlock>
-
-          <StoryBlock
-            eyebrow="Routes"
-            title="Read the system here. Operate the product in the studio."
-            body="The site is split on purpose. Home sells the thesis. Architecture explains the system. Studio handles the actual backend lifecycle."
-            tone="accent"
-          >
-            <div className="mt-8 flex flex-wrap gap-4">
-              <NavLink to="/studio" className="pill-primary group">
-                Launch studio
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-black/10 transition-transform duration-700 ease-premium group-hover:translate-x-1">
-                  <ArrowRight size={16} weight="light" />
-                </span>
-              </NavLink>
-              <NavLink to="/architecture" className="pill-secondary">
-                Inspect architecture
-              </NavLink>
-            </div>
-          </StoryBlock>
+      <section className="landing-cta">
+        <div>
+          <div className="eyebrow">Hackathon position</div>
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-ink md:text-5xl">
+            A private agent builder and lifecycle control plane on 0G.
+          </h2>
+          <p className="mt-4 max-w-[70ch] text-base leading-8 text-muted">
+            The demo should show the product in one pass: choose a template, shape the workflow, publish to 0G Storage,
+            register on 0G Chain, authorize usage, and run the private workflow.
+          </p>
         </div>
+        <NavLink to="/studio" className="pill-primary shrink-0">
+          Launch Studio
+          <BracketsCurly size={16} weight="light" />
+        </NavLink>
       </section>
     </div>
   );
