@@ -82,6 +82,20 @@ export async function ensureWallet() {
 export async function switchOrAddNetwork({ chainId, chainName, rpcUrl, blockExplorerUrl, nativeCurrency }) {
   const ethereum = getEthereum();
   const hexChainId = `0x${Number(chainId).toString(16)}`;
+  const isTargetChain = (value) => Number(value) === Number(chainId);
+
+  async function getCurrentChainId() {
+    try {
+      const current = await ethereum.request({ method: "eth_chainId" });
+      return Number(current);
+    } catch {
+      return null;
+    }
+  }
+
+  if (isTargetChain(await getCurrentChainId())) {
+    return ensureWallet();
+  }
 
   try {
     await ethereum.request({
@@ -93,18 +107,30 @@ export async function switchOrAddNetwork({ chainId, chainName, rpcUrl, blockExpl
       throw error;
     }
 
-    await ethereum.request({
-      method: "wallet_addEthereumChain",
-      params: [
-        {
-          chainId: hexChainId,
-          chainName,
-          nativeCurrency,
-          rpcUrls: [rpcUrl],
-          blockExplorerUrls: blockExplorerUrl ? [blockExplorerUrl] : [],
-        },
-      ],
-    });
+    try {
+      await ethereum.request({
+        method: "wallet_addEthereumChain",
+        params: [
+          {
+            chainId: hexChainId,
+            chainName,
+            nativeCurrency,
+            rpcUrls: [rpcUrl],
+            blockExplorerUrls: blockExplorerUrl ? [blockExplorerUrl] : [],
+          },
+        ],
+      });
+    } catch (addError) {
+      const message = String(addError?.message || "");
+      if (!message.toLowerCase().includes("same rpc endpoint")) {
+        throw addError;
+      }
+
+      await ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: hexChainId }],
+      });
+    }
   }
 
   return ensureWallet();
