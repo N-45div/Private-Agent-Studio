@@ -157,6 +157,21 @@ function computeSummary(health) {
   return "broker";
 }
 
+function getRunTeeSummary(run) {
+  const stages = ["planner", "specialist", "executor"];
+  const verified = stages.filter((stage) => run.compute?.[stage]?.teeVerified).length;
+  return `${verified}/${stages.length} TEE verified`;
+}
+
+function getRunProvider(run) {
+  return (
+    run.compute?.planner?.trace?.provider ||
+    run.compute?.specialist?.trace?.provider ||
+    run.compute?.executor?.trace?.provider ||
+    "Unavailable"
+  );
+}
+
 function getExplorerBaseUrl(health) {
   return health?.network === "testnet"
     ? "https://chainscan-galileo.0g.ai"
@@ -2347,7 +2362,36 @@ export function StudioPage() {
                             </div>
                             <DataTag label="Created" value={formatDate(run.createdAt)} />
                             <DataTag label="Credential source" value={run.credentialSource} />
+                            <DataTag label="TEE proof" value={getRunTeeSummary(run)} />
+                            <DataTag label="Provider" value={formatShortAddress(getRunProvider(run))} />
+                            <DataTag label="Trace root" value={run.storageRoot ? `${run.storageRoot.slice(0, 12)}...` : "Missing"} />
+                            <DataTag label="Trace tx" value={run.storageTxHash ? `${run.storageTxHash.slice(0, 12)}...` : "Missing"} />
                           </div>
+                          {run.output ? (
+                            <div className="mt-5 rounded-[1.25rem] border border-accent/20 bg-accent/10 p-4">
+                              <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-accent">Final output</div>
+                              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-ink">{run.output}</p>
+                            </div>
+                          ) : null}
+                          {run.planSummary ? (
+                            <div className="mt-4 rounded-[1.25rem] border border-white/10 bg-black/15 p-4">
+                              <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">Planner summary</div>
+                              <p className="mt-3 text-sm leading-7 text-muted">{run.planSummary}</p>
+                            </div>
+                          ) : null}
+                          {run.delegatedTasks?.length ? (
+                            <div className="mt-4 grid gap-3">
+                              {run.delegatedTasks.map((task) => (
+                                <div key={task.id} className="rounded-[1rem] border border-white/10 bg-black/15 p-4">
+                                  <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">{task.id}</div>
+                                    <StatusBadge value={task.ownerRole || "task"} />
+                                  </div>
+                                  <p className="mt-3 text-sm leading-7 text-muted">{task.objective}</p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
                           {run.error ? (
                             <div className="mt-4 rounded-[1.25rem] border border-[#8e4330]/25 bg-[#8e4330]/20 px-4 py-3 text-sm text-[#efb197]">
                               {run.error}
