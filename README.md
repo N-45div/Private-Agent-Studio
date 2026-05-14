@@ -84,20 +84,6 @@ This positions the project strongest for the 0G APAC Hackathon agent infrastruct
 - 0G Compute diagnostics confirm the router API is reachable.
 - A live workflow run completed through the planner, specialist, and executor path with TEE verification reported by the 0G response trace.
 
-## Demo Story
-
-The best three-minute demo should show one clean product journey:
-
-1. Open the Studio.
-2. Pick or shape a private agent workflow.
-3. Publish the package.
-4. Show the 0G mainnet registry address and explorer link.
-5. Authorize usage.
-6. Run the workflow through 0G Compute.
-7. Show the run output and TEE verification metadata.
-
-That sequence explains the product, proves the 0G integration, and keeps the user story simple.
-
 ## Repository Map
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md): production topology, lifecycle diagrams, and proof boundaries
