@@ -28,7 +28,7 @@ const computeFallbackProviders = (
 
 export const config = {
   port: Number.parseInt(process.env.PORT || "4000", 10),
-  host: process.env.HOST || "127.0.0.1",
+  host: process.env.HOST || (process.env.PORT ? "0.0.0.0" : "127.0.0.1"),
   dataFile: path.join(process.cwd(), "data", "state.json"),
   zeroG: {
     network,
