@@ -442,9 +442,10 @@ export class ZeroGComputeAdapter {
     const data = await response.json();
     const message = data?.choices?.[0]?.message?.content;
     const parsed = extractJsonObject(message);
+    const trace = data?.x_0g_trace || data?.trace || null;
     const teeVerified =
-      data?.trace?.tee_verified ??
-      data?.trace?.teeVerified ??
+      trace?.tee_verified ??
+      trace?.teeVerified ??
       data?.tee_verified ??
       data?.teeVerified ??
       null;
@@ -454,7 +455,7 @@ export class ZeroGComputeAdapter {
         code: "zerog_tee_verification_failed",
         statusCode: 502,
         details: {
-          trace: data?.trace || null,
+          trace,
         },
       });
     }
@@ -469,6 +470,7 @@ export class ZeroGComputeAdapter {
         model: this.config.zeroG.computeModel,
         chatId: data?.id || null,
         teeVerified,
+        trace,
       },
     };
   }
