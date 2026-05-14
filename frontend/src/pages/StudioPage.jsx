@@ -1087,6 +1087,11 @@ export function StudioPage() {
     });
   }
 
+  function handleSelectTemplate(templateId) {
+    setSelectedTemplateId(templateId);
+    setCreateForm((current) => ({ ...current, templateId }));
+  }
+
   async function handleConnectWallet() {
     setPending((current) => ({ ...current, connectWallet: true }));
     setScreenError("");
@@ -1618,53 +1623,76 @@ export function StudioPage() {
           <section className="space-y-6">
             <div className="min-w-0 space-y-6">
               <div className="studio-panel p-5 md:p-6">
-                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.38fr)_minmax(16rem,0.32fr)] xl:items-end">
                   <div>
                     <div className="eyebrow">Choose a starting agent</div>
                     <div className="mt-1 text-lg font-semibold tracking-[-0.04em] text-ink">
                       Pick a template, then tune the package settings
                     </div>
                   </div>
-                  <div className="w-full md:max-w-xs">
+                  <FormField label="Template">
+                    <Select
+                      value={selectedTemplateId}
+                      onChange={(event) => handleSelectTemplate(event.target.value)}
+                      className="min-h-[42px] rounded-[0.9rem] bg-black/20 py-2.5"
+                      disabled={templates.length === 0}
+                    >
+                      {templates.length === 0 ? (
+                        <option value="">Loading templates...</option>
+                      ) : null}
+                      {templates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormField>
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">Filter</div>
                     <Input
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
-                      placeholder="Search templates"
+                      placeholder="Search by name or track"
                       className="min-h-[42px] rounded-[0.9rem] bg-black/20 py-2.5"
                     />
                   </div>
                 </div>
-                <div className="thin-scrollbar mt-5 grid gap-4 overflow-auto pb-1 lg:grid-cols-3">
-                  {filteredTemplates.map((template) => (
-                    <button
-                      key={template.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedTemplateId(template.id);
-                        setCreateForm((current) => ({ ...current, templateId: template.id }));
-                      }}
-                      className={classNames(
-                        "min-h-[11rem] rounded-[1.1rem] border p-4 text-left transition-all duration-500",
-                        selectedTemplateId === template.id
-                          ? "border-accent/35 bg-accent/10 shadow-[0_22px_48px_-34px_rgba(197,122,74,0.55)]"
-                          : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]",
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="text-base font-semibold tracking-[-0.03em] text-ink">{template.name}</div>
-                        <StatusBadge value={selectedTemplateId === template.id ? "active" : template.category} />
-                      </div>
-                      <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted">{template.summary}</p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {(template.tracks || []).slice(0, 3).map((track) => (
-                          <span key={track} className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.18em] text-soft">
-                            {track.replaceAll("_", " ")}
-                          </span>
-                        ))}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                {filteredTemplates.length === 0 ? (
+                  <div className="mt-5 rounded-[1.1rem] border border-white/10 bg-black/15 p-5 text-sm text-muted">
+                    {templates.length === 0
+                      ? "Templates are still loading. If this stays empty, the frontend cannot reach the backend template endpoint."
+                      : "No templates match this filter. Clear the search to see all templates."}
+                  </div>
+                ) : (
+                  <div className="thin-scrollbar mt-5 grid gap-4 overflow-auto pb-1 lg:grid-cols-3">
+                    {filteredTemplates.map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        onClick={() => handleSelectTemplate(template.id)}
+                        className={classNames(
+                          "min-h-[11rem] rounded-[1.1rem] border p-4 text-left transition-all duration-500",
+                          selectedTemplateId === template.id
+                            ? "border-accent/35 bg-accent/10 shadow-[0_22px_48px_-34px_rgba(197,122,74,0.55)]"
+                            : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]",
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="text-base font-semibold tracking-[-0.03em] text-ink">{template.name}</div>
+                          <StatusBadge value={selectedTemplateId === template.id ? "active" : template.category} />
+                        </div>
+                        <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted">{template.summary}</p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {(template.tracks || []).slice(0, 3).map((track) => (
+                            <span key={track} className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.18em] text-soft">
+                              {track.replaceAll("_", " ")}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="studio-panel p-5 md:p-6">
@@ -1768,6 +1796,22 @@ export function StudioPage() {
                   </div>
 
                   <div className="grid gap-3 rounded-[1.1rem] border border-white/10 bg-black/15 p-4">
+                    <FormField label="Template">
+                      <Select
+                        value={createForm.templateId}
+                        onChange={(event) => handleSelectTemplate(event.target.value)}
+                        disabled={templates.length === 0}
+                      >
+                        {templates.length === 0 ? (
+                          <option value="">Loading templates...</option>
+                        ) : null}
+                        {templates.map((template) => (
+                          <option key={template.id} value={template.id}>
+                            {template.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormField>
                     <FormField label="Agent name">
                       <Input value={createForm.name} onChange={(event) => updateCreateForm("name", event.target.value)} />
                     </FormField>
