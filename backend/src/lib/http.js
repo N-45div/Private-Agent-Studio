@@ -13,7 +13,15 @@ export async function readJson(request) {
   return JSON.parse(raw);
 }
 
+export function applyCors(response) {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  response.setHeader("Access-Control-Max-Age", "86400");
+}
+
 export function sendJson(response, statusCode, payload) {
+  applyCors(response);
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
   });
@@ -28,6 +36,7 @@ export function notFound(response) {
 }
 
 export function methodNotAllowed(response, allowedMethods) {
+  applyCors(response);
   response.writeHead(405, {
     Allow: allowedMethods.join(", "),
     "Content-Type": "application/json; charset=utf-8",

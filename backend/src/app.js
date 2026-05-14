@@ -1,5 +1,5 @@
 import { config } from "./config.js";
-import { methodNotAllowed, notFound, readJson, sendJson } from "./lib/http.js";
+import { applyCors, methodNotAllowed, notFound, readJson, sendJson } from "./lib/http.js";
 import { isAppError } from "./lib/errors.js";
 import { createServiceContainer } from "./services/container.js";
 
@@ -29,6 +29,12 @@ export async function handleRequest(request, response) {
   const path = url.pathname;
 
   try {
+    if (request.method === "OPTIONS") {
+      applyCors(response);
+      response.writeHead(204);
+      return response.end();
+    }
+
     if (path === "/health") {
       if (request.method !== "GET") {
         return methodNotAllowed(response, ["GET"]);
