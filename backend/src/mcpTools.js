@@ -159,7 +159,7 @@ export function listStudioTools() {
     },
     {
       name: "studio.confirm_publish",
-      description: "Confirm that the owner wallet published the agent package to 0G Storage or 0G Chain.",
+      description: "Confirm that the package owner's wallet published the agent package to 0G Storage or 0G Chain.",
       inputSchema: {
         type: "object",
         properties: {
@@ -191,7 +191,7 @@ export function listStudioTools() {
     },
     {
       name: "studio.confirm_onchain_registration",
-      description: "Confirm that the owner wallet registered the published agent on the onchain registry.",
+      description: "Confirm that the package owner's wallet registered the published agent on the onchain registry.",
       inputSchema: {
         type: "object",
         properties: {
@@ -248,7 +248,7 @@ export function listStudioTools() {
     },
     {
       name: "studio.confirm_authorization",
-      description: "Confirm that the owner wallet executed a prepared usage authorization onchain.",
+      description: "Confirm that the package owner's wallet executed a prepared usage authorization onchain.",
       inputSchema: {
         type: "object",
         properties: {
@@ -285,7 +285,7 @@ export function listStudioTools() {
     },
     {
       name: "studio.confirm_revocation",
-      description: "Confirm that the owner wallet revoked an active authorization onchain.",
+      description: "Confirm that the package owner's wallet revoked an active authorization onchain.",
       inputSchema: {
         type: "object",
         properties: {

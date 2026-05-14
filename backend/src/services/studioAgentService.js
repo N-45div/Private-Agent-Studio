@@ -319,7 +319,7 @@ export class StudioAgentService {
       workflowHash,
       explorerAddressUrl: `${this.config.zeroG.chainExplorerBaseUrl}${call.contractAddress}`,
       recommendedFlow: [
-        "Use the owner wallet to call registerAgent on 0G Chain.",
+        "Use the package owner's wallet to call registerAgent on 0G Chain.",
         "Wait for the transaction to be confirmed on ChainScan.",
         "Call the backend confirmation endpoint with the tx hash and registry address.",
       ],
@@ -620,7 +620,7 @@ export class StudioAgentService {
       chainId: call.chainId,
       explorerAddressUrl: `${this.config.zeroG.chainExplorerBaseUrl}${call.contractAddress}`,
       recommendedFlow: [
-        "Use the owner wallet to call revokeUsage on 0G Chain.",
+        "Use the package owner's wallet to call revokeUsage on 0G Chain.",
         "Wait for the transaction to be confirmed on ChainScan.",
         "Call the backend revocation confirmation endpoint with the tx hash and registry address.",
       ],

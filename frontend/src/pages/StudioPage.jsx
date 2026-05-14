@@ -28,7 +28,7 @@ import {
   writePrivateAgentRegistry,
 } from "../zerog.js";
 
-const defaultOwner = "0x1234567890123456789012345678901234567890";
+const defaultOwner = "";
 
 const initialCreateState = {
   name: "Board Research Capsule",
@@ -503,7 +503,7 @@ function ContextStrip({
           </button>
           <button type="button" onClick={onSyncOwner} className="pill-primary">
             <LinkSimple size={15} weight="light" />
-            Sync owner
+            Use wallet
           </button>
         </div>
       </div>
@@ -991,7 +991,7 @@ export function StudioPage() {
       status: selectedAgent?.storageRoot ? "complete" : selectedAgent ? "active" : "pending",
       detail: selectedAgent?.storageRoot
         ? `Storage root anchored: ${selectedAgent.storageRoot.slice(0, 14)}...`
-        : "Upload the package with the owner wallet and confirm the resulting storage root.",
+        : "Upload the package with the package owner's wallet and confirm the resulting storage root.",
       href: selectedAgent?.storageTxHash ? buildExplorerUrl(health, "tx", selectedAgent.storageTxHash) : "",
     },
     {
@@ -1000,7 +1000,7 @@ export function StudioPage() {
       status: selectedAgent?.onchainStatus === "registered" ? "complete" : selectedAgent?.storageRoot ? "active" : "pending",
       detail: selectedAgent?.onchainStatus === "registered"
         ? `Registered at ${formatShortAddress(selectedAgent.registryAddress || "")}`
-        : "Submit registerAgent from the owner wallet and confirm the registration transaction.",
+        : "Submit registerAgent from the package owner's wallet and confirm the registration transaction.",
       href: selectedAgent?.registrationTxHash ? buildExplorerUrl(health, "tx", selectedAgent.registrationTxHash) : "",
     },
   ];
@@ -1099,6 +1099,10 @@ export function StudioPage() {
         chainId: wallet.chainId,
         connected: true,
       });
+      setCreateForm((current) => ({
+        ...current,
+        owner: current.owner || wallet.address,
+      }));
       setInfoMessage(`Wallet connected: ${wallet.address}`);
     } catch (error) {
       setScreenError(error.message);
@@ -1109,7 +1113,7 @@ export function StudioPage() {
 
   async function handleUseConnectedWallet() {
     if (!walletState.connected || !walletState.address) {
-      setScreenError("Connect a wallet before syncing the owner field.");
+      setScreenError("Connect a wallet before using it as the package owner.");
       return;
     }
 
@@ -1117,7 +1121,7 @@ export function StudioPage() {
     setPublishForm((current) => ({ ...current, publisher: walletState.address }));
     setRegistrationForm((current) => ({ ...current, registrant: walletState.address }));
     setAuthorizationConfirmForm((current) => ({ ...current, authorizer: walletState.address }));
-    setInfoMessage("Owner fields synced from the connected wallet.");
+    setInfoMessage("This connected wallet will own new packages and sign owner-only lifecycle actions.");
   }
 
   async function handleWalletUpload() {
@@ -1203,7 +1207,7 @@ export function StudioPage() {
       network?.address &&
       expectedOwner.toLowerCase() !== network.address.toLowerCase()
     ) {
-      throw new Error("Connected wallet does not match the agent owner. Switch to the owner wallet before submitting this transaction.");
+      throw new Error("Connected wallet does not match this package owner. Switch wallets or create a package owned by the connected wallet.");
     }
 
     return network;
@@ -1216,7 +1220,14 @@ export function StudioPage() {
     setInfoMessage("");
 
     try {
-      const response = await api.createAgent(buildCreatePayload(createForm));
+      const owner = createForm.owner || walletState.address;
+      if (!owner) {
+        throw new Error("Connect a wallet or paste the wallet address that should own this package.");
+      }
+
+      const nextCreateForm = { ...createForm, owner };
+      setCreateForm(nextCreateForm);
+      const response = await api.createAgent(buildCreatePayload(nextCreateForm));
       await refreshAgentList(response.agent.id);
       await loadAgentWorkbench(response.agent.id);
       setSelectedAgentId(response.agent.id);
@@ -1726,7 +1737,7 @@ export function StudioPage() {
                     </div>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-muted">
-                    Use the selected template and defaults. Change only the name or owner before creating the draft.
+                    Use the selected template and choose the wallet that should own this package.
                   </p>
                 </div>
 
@@ -1760,8 +1771,15 @@ export function StudioPage() {
                     <FormField label="Agent name">
                       <Input value={createForm.name} onChange={(event) => updateCreateForm("name", event.target.value)} />
                     </FormField>
-                    <FormField label="Owner wallet">
-                      <Input value={createForm.owner} onChange={(event) => updateCreateForm("owner", event.target.value)} />
+                    <FormField
+                      label="Package owner"
+                      helper="Any wallet can create a package. The selected owner is the wallet that must sign publish, registry, and grant actions."
+                    >
+                      <Input
+                        value={createForm.owner}
+                        placeholder="Connect a wallet or paste any 0G address"
+                        onChange={(event) => updateCreateForm("owner", event.target.value)}
+                      />
                     </FormField>
                   </div>
 

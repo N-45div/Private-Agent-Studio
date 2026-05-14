@@ -44,7 +44,7 @@ export function ArchitecturePage() {
               </h1>
               <p className="max-w-[64ch] text-base leading-8 text-muted">
                 The product only becomes credible when those boundaries stay clear. The site explains the product. The
-                owner wallet publishes. The runtime executes private workflows. The chain anchors proof.
+                package owner's wallet publishes. The runtime executes private workflows. The chain anchors proof.
               </p>
             </div>
 

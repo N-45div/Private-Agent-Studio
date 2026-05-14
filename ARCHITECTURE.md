@@ -154,7 +154,7 @@ This is the core product promise: private workflow contents can stay controlled 
 
 `PrivateAgentRegistry` is the onchain ownership and permission anchor. It is intentionally small:
 
-- register an agent package under an owner wallet
+- register an agent package under the package owner's wallet
 - store package hash and storage root references
 - store workflow or policy hashes
 - create and revoke usage grants

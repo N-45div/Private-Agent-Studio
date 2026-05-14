@@ -12,7 +12,7 @@ import {
 
 const lifecycle = [
   ["01", "Build", "Start from a private agent template and shape the planner, specialist, and executor workflow."],
-  ["02", "Publish", "Use the owner wallet to publish the encrypted package to 0G Storage."],
+  ["02", "Publish", "Use the package owner's wallet to publish the private package to 0G Storage."],
   ["03", "Register", "Anchor ownership, package hash, and storage root on 0G Chain."],
   ["04", "Authorize", "Grant scoped access to wallets, apps, or MCP runtimes."],
   ["05", "Run", "Execute the private workflow through the same control plane."],
@@ -108,7 +108,7 @@ export function HomePage() {
               Private Agent Studio
             </h1>
             <p className="max-w-[66ch] text-lg leading-8 text-muted">
-              Build private multi-agent workflows visually, publish encrypted packages through the owner wallet,
+              Build private multi-agent workflows visually, publish private packages through the package owner's wallet,
               register proof onchain, authorize usage, and run the workflow through one control plane.
             </p>
           </div>
