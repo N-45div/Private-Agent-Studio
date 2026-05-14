@@ -1141,7 +1141,7 @@ export function StudioPage() {
 
     try {
       const publishIntent = selectedAgentState.publishIntent;
-      const targetChainId = health?.network === "testnet" ? 16602 : 16600;
+      const targetChainId = Number(health?.chainId || (health?.network === "testnet" ? 16602 : 16661));
       const targetNetwork = await switchOrAddNetwork({
         chainId: targetChainId,
         chainName: health?.network === "testnet" ? "0G-Galileo-Testnet" : "0G-Mainnet",
@@ -1423,7 +1423,7 @@ export function StudioPage() {
           authorization.scopeHash,
           authorization.expiresAt || 0,
         ],
-        chainId: health?.network === "testnet" ? 16602 : 16600,
+        chainId: Number(health?.chainId || (health?.network === "testnet" ? 16602 : 16661)),
       };
 
       if (!intent.contractAddress) {
@@ -1432,7 +1432,10 @@ export function StudioPage() {
 
       const wallet = await ensureOwnerWallet({
         expectedOwner: selectedAgent.owner,
-        rpcUrl: health?.rpcUrl || selectedAgentState.publishIntent?.targets?.rpcUrl || "https://evmrpc-testnet.0g.ai",
+        rpcUrl:
+          health?.rpcUrl ||
+          selectedAgentState.publishIntent?.targets?.rpcUrl ||
+          (health?.network === "testnet" ? "https://evmrpc-testnet.0g.ai" : "https://evmrpc.0g.ai"),
         chainId: intent.chainId,
         contractAddress: intent.contractAddress,
       });
