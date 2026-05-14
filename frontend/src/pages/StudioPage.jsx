@@ -773,6 +773,7 @@ export function StudioPage() {
     create: false,
     connectWallet: false,
     uploadPackage: false,
+    serverPublish: false,
     walletRegister: false,
     publish: false,
     register: false,
@@ -1270,6 +1271,31 @@ export function StudioPage() {
       setScreenError(error.message);
     } finally {
       setPending((current) => ({ ...current, publish: false }));
+    }
+  }
+
+  async function handleServerPublish() {
+    if (!selectedAgent) {
+      return;
+    }
+
+    setPending((current) => ({ ...current, serverPublish: true }));
+    setScreenError("");
+    setInfoMessage("");
+    setPublishNotice("storage", null, "");
+
+    try {
+      const response = await api.publishFromBackend(selectedAgent.id);
+      await loadAgentWorkbench(selectedAgent.id);
+      await refreshAgentList(selectedAgent.id);
+      setSelectedPublishStepId("registry");
+      setPublishNotice("storage", "success", `0G Storage publish confirmed. Root ${response.upload?.rootHash}`);
+      setInfoMessage("Package published to 0G Storage through the backend signer.");
+    } catch (error) {
+      setPublishNotice("storage", "error", error.message);
+      setScreenError(error.message);
+    } finally {
+      setPending((current) => ({ ...current, serverPublish: false }));
     }
   }
 
@@ -1985,6 +2011,10 @@ export function StudioPage() {
                                   <button type="button" onClick={handleWalletUpload} className="pill-primary group">
                                     <FileArrowUp size={16} weight="light" />
                                     {pending.uploadPackage ? "Uploading..." : "Upload package to 0G"}
+                                  </button>
+                                  <button type="button" onClick={handleServerPublish} className="pill-secondary" disabled={pending.serverPublish}>
+                                    <TerminalWindow size={16} weight="light" />
+                                    {pending.serverPublish ? "Publishing..." : "Backend publish"}
                                   </button>
                                 </div>
                               </div>

@@ -68,6 +68,11 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  publishFromBackend(agentId) {
+    return request(`/api/agents/${agentId}/server-publish`, {
+      method: "POST",
+    });
+  },
   getOnchainRegistrationIntent(agentId) {
     return request(`/api/agents/${agentId}/onchain-registration-intent`);
   },

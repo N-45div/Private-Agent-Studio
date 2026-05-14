@@ -163,6 +163,16 @@ export async function handleRequest(request, response) {
       return sendJson(response, 200, { agent });
     }
 
+    const agentServerPublishMatch = path.match(/^\/api\/agents\/([^/]+)\/server-publish$/);
+    if (agentServerPublishMatch) {
+      if (request.method !== "POST") {
+        return methodNotAllowed(response, ["POST"]);
+      }
+
+      const result = await studioAgentService.publishAgentPackageFromBackend(agentServerPublishMatch[1]);
+      return sendJson(response, 200, result);
+    }
+
     const agentOnchainIntentMatch = path.match(/^\/api\/agents\/([^/]+)\/onchain-registration-intent$/);
     if (agentOnchainIntentMatch) {
       if (request.method !== "GET") {

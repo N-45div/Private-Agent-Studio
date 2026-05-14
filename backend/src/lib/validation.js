@@ -195,7 +195,7 @@ export function validateConfirmPublishInput(input, expectedOwner, expectedPackag
 
   const publishMode = requireString(input.publishMode, "publishMode");
   assert(
-    ["user_wallet_storage", "user_wallet_storage_and_chain"].includes(publishMode),
+    ["user_wallet_storage", "user_wallet_storage_and_chain", "backend_storage"].includes(publishMode),
     "publishMode is not supported",
     { publishMode },
   );

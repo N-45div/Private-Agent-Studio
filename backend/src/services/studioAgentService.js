@@ -275,6 +275,35 @@ export class StudioAgentService {
     return agent;
   }
 
+  async publishAgentPackageFromBackend(agentId) {
+    const currentAgent = await this.getAgent(agentId);
+    if (!currentAgent) {
+      throw new AppError("Agent not found", {
+        code: "agent_not_found",
+        statusCode: 404,
+      });
+    }
+
+    if (!this.storageAdapter.canWriteDocuments()) {
+      throw new AppError("Backend 0G Storage signer is not configured", {
+        code: "zerog_storage_signer_missing",
+        statusCode: 503,
+      });
+    }
+
+    const upload = await this.storageAdapter.writeDocument("agent-package", currentAgent.draftPackage);
+    const agent = await this.confirmPublishedAgent(agentId, {
+      publisher: currentAgent.owner,
+      packageHash: currentAgent.packageHash,
+      publishMode: "backend_storage",
+      storageRoot: upload.rootHash,
+      storageTxHash: upload.txHash,
+      encryptionScheme: "backend_assisted",
+    });
+
+    return { agent, upload };
+  }
+
   async getOnchainRegistrationIntent(agentId) {
     const agent = await this.getAgent(agentId);
     if (!agent) {
