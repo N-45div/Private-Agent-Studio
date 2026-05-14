@@ -253,6 +253,23 @@ function DataTag({ label, value }) {
   );
 }
 
+function CopyButton({ value, children = "Copy" }) {
+  async function handleCopy() {
+    if (!value) {
+      return;
+    }
+
+    await navigator.clipboard?.writeText(value);
+  }
+
+  return (
+    <button type="button" onClick={handleCopy} className="pill-secondary px-3 py-2 text-xs">
+      <LinkSimple size={14} weight="light" />
+      {children}
+    </button>
+  );
+}
+
 function InlineStat({ label, value }) {
   return (
     <div className="min-w-0">
@@ -413,6 +430,20 @@ function JsonPanel({ label, value }) {
         {value}
       </pre>
     </details>
+  );
+}
+
+function CodeBlock({ label, value }) {
+  return (
+    <div className="overflow-hidden rounded-[1.2rem] border border-white/10 bg-black/15">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+        <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-soft">{label}</div>
+        <CopyButton value={value} />
+      </div>
+      <pre className="thin-scrollbar max-h-[17rem] overflow-auto px-4 py-4 font-mono text-xs leading-6 text-[#e9e6de]">
+        {value}
+      </pre>
+    </div>
   );
 }
 
@@ -1615,6 +1646,54 @@ export function StudioPage() {
   }
 
   const filteredAgentRuns = selectedAgentState.runs.slice().reverse();
+  const exportManifest = selectedAgentState.exportManifest;
+  const manifestUrl = selectedAgent
+    ? `${api.baseUrl}/api/agents/${selectedAgent.id}/export-manifest`
+    : "";
+  const apiRunCommand = selectedAgent
+    ? `curl -sS -X POST \\
+  ${api.baseUrl}/api/agents/${selectedAgent.id}/runs \\
+  -H "content-type: application/json" \\
+  -d '${JSON.stringify(
+    {
+      objective: "Run this private agent package and return a concise result.",
+      runtime: {
+        credentialSource: "platform_managed",
+        executionMode: "auto",
+        providedSecretKeys: [],
+      },
+    },
+    null,
+    2,
+  )}'`
+    : "";
+  const mcpServerDefinition = exportManifest?.openclaw?.savedServerDefinition
+    ? {
+        ...exportManifest.openclaw.savedServerDefinition,
+        cwd: "/absolute/path/to/agentvault/backend",
+        env: {
+          ...exportManifest.openclaw.savedServerDefinition.env,
+          ZEROG_COMPUTE_API_KEY: "<your-0g-compute-api-key-or-platform-managed-runtime>",
+          ZEROG_COMPUTE_API_BASE: "https://router-api.0g.ai/v1",
+          ZEROG_COMPUTE_MODEL: "0GM-1.0-35B-A3B",
+          ZEROG_COMPUTE_REQUIRE_TEE: "true",
+        },
+      }
+    : null;
+  const mcpRunPayload = selectedAgent
+    ? {
+        tool: "studio.start_run",
+        arguments: {
+          agentId: selectedAgent.id,
+          objective: "Run the Board Research Capsule for a private strategy summary.",
+          runtime: {
+            credentialSource: "platform_managed",
+            executionMode: "auto",
+            providedSecretKeys: [],
+          },
+        },
+      }
+    : null;
 
   return (
     <div className="space-y-6 pb-20 pt-2">
@@ -2410,7 +2489,7 @@ export function StudioPage() {
         {activePhase === "handoff" ? (
           <section>
             <SectionShell title="Runtime handoff" eyebrow="Handoff / Diagnostics" icon={Lightning}>
-              <div className="grid gap-8 xl:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
+              <div className="grid gap-8 xl:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
                 <div className="space-y-5 xl:border-r xl:border-white/10 xl:pr-6">
                   <div className="grid gap-4 md:grid-cols-2">
                     <DataTag label="Backend" value={health?.ok ? "Reachable" : "Offline"} />
@@ -2418,12 +2497,90 @@ export function StudioPage() {
                     <DataTag label="Compute mode" value={computeDiagnostics?.mode || "Unavailable"} />
                     <DataTag label="Agent registry" value={health?.readiness?.hasAgentRegistry ? "Configured" : "Missing"} />
                   </div>
-                  <JsonPanel label="Compute diagnostics" value={prettifyJson(computeDiagnostics)} />
+                  {exportManifest ? (
+                    <div className="space-y-4">
+                      <div className="rounded-[1.25rem] border border-accent/20 bg-accent/10 p-4">
+                        <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-accent">Export ready</div>
+                        <div className="mt-2 text-lg font-semibold tracking-[-0.04em] text-ink">{exportManifest.agent?.name}</div>
+                        <p className="mt-3 text-sm leading-7 text-muted">
+                          This agent is published, registered, authorized, and ready for API or MCP runtime use.
+                        </p>
+                      </div>
+                      <DataTag label="Agent ID" value={exportManifest.agent?.id} />
+                      <DataTag label="Storage root" value={exportManifest.storage?.storageRoot ? `${exportManifest.storage.storageRoot.slice(0, 14)}...` : "Missing"} />
+                      <DataTag label="Registry" value={formatShortAddress(exportManifest.onchain?.registryAddress || "")} />
+                      <DataTag label="Active grants" value={String(exportManifest.onchain?.activeAuthorizationCount || 0)} />
+                    </div>
+                  ) : (
+                    <EmptyPanel title="Manifest unavailable." body="Select an agent to inspect API, MCP, and runtime handoff details." />
+                  )}
                 </div>
 
-                <div>
-                  {selectedAgentState.exportManifest ? (
-                    <JsonPanel label="Export manifest" value={prettifyJson(selectedAgentState.exportManifest)} />
+                <div className="space-y-5">
+                  {exportManifest ? (
+                    <>
+                      <div className="grid gap-4 lg:grid-cols-3">
+                        <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4">
+                          <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">1 / API client</div>
+                          <div className="mt-3 text-base font-semibold text-ink">Run from any backend</div>
+                          <p className="mt-2 text-sm leading-6 text-muted">Use the hosted API when you want the deployed Studio backend to execute the agent.</p>
+                        </div>
+                        <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4">
+                          <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">2 / MCP</div>
+                          <div className="mt-3 text-base font-semibold text-ink">Attach to a local runtime</div>
+                          <p className="mt-2 text-sm leading-6 text-muted">Use the MCP stdio server when OpenClaw or another MCP client should call Studio tools.</p>
+                        </div>
+                        <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4">
+                          <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">3 / Proof</div>
+                          <div className="mt-3 text-base font-semibold text-ink">Share judge evidence</div>
+                          <p className="mt-2 text-sm leading-6 text-muted">Copy manifest, contract, storage root, and registration transaction for review.</p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-[1.25rem] border border-white/10 bg-black/15 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">Manifest URL</div>
+                            <div className="mt-2 break-all text-sm font-semibold text-ink">{manifestUrl}</div>
+                          </div>
+                          <CopyButton value={manifestUrl}>Copy URL</CopyButton>
+                        </div>
+                      </div>
+
+                      <CodeBlock label="API run command" value={apiRunCommand} />
+                      <CodeBlock label="MCP / OpenClaw server config" value={prettifyJson(mcpServerDefinition)} />
+                      <CodeBlock label="MCP run tool payload" value={prettifyJson(mcpRunPayload)} />
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <a
+                          href={buildExplorerUrl(health, "address", exportManifest.onchain?.registryAddress)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="pill-secondary justify-center"
+                        >
+                          Registry contract
+                          <ArrowUpRight size={15} weight="light" />
+                        </a>
+                        <a
+                          href={buildExplorerUrl(health, "tx", exportManifest.onchain?.registrationTxHash)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="pill-secondary justify-center"
+                        >
+                          Registration tx
+                          <ArrowUpRight size={15} weight="light" />
+                        </a>
+                      </div>
+
+                      <details className="overflow-hidden rounded-[1.2rem] border border-white/10 bg-black/15">
+                        <summary className="cursor-pointer list-none border-b border-white/10 px-4 py-3 font-mono text-[10px] uppercase tracking-[0.24em] text-soft marker:content-none">
+                          Advanced raw manifest
+                        </summary>
+                        <pre className="thin-scrollbar max-h-[20rem] overflow-auto px-4 py-4 font-mono text-xs leading-6 text-[#e9e6de]">
+                          {prettifyJson(exportManifest)}
+                        </pre>
+                      </details>
+                    </>
                   ) : (
                     <EmptyPanel title="Manifest unavailable." body="Select an agent to inspect API, MCP, and runtime handoff details." />
                   )}
