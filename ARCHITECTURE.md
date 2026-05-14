@@ -1,217 +1,192 @@
 # Private Agent Studio Architecture
 
-Private Agent Studio is a privacy-first, no-code system for building and running multi-agent workflows on 0G.
+Private Agent Studio is a product layer for creating, owning, authorizing, and running private AI agent workflows on 0G.
 
-It targets three hackathon tracks at once:
+The architecture is intentionally split into five lifecycle stages:
 
-- `Track 1`: multi-agent orchestration and workflow runtime
-- `Track 5`: private memory, private prompts, and TEE-backed execution
-- `Track 3`: exportable, ownable, and licensable agent assets
+1. Build a private workflow.
+2. Publish the package.
+3. Register ownership onchain.
+4. Authorize scoped usage.
+5. Run TEE-verified inference.
 
-## Product Thesis
+This split keeps the product usable for non-technical users while still giving judges clear proof of where 0G is used.
 
-Users should be able to:
-
-- build agents visually without code
-- keep prompts, memory, and knowledge private
-- run multi-agent workflows with role delegation
-- publish agent packages with their own wallet
-- export or authorize those agents for other users and teams
-- retain onchain proof of ownership, permissions, and usage
-
-## System Diagram
+## Production Topology
 
 ```mermaid
 flowchart LR
-    U[User / Team] --> UI[Builder UI]
-    UI --> API[Studio Backend API]
-    OCLAW[OpenClaw / MCP Client] --> MCP[MCP Bridge]
+    User[User Wallet + Browser] --> UI[Vercel Frontend]
+    UI --> API[Cloud Run Backend]
 
-    API --> TPL[Template Catalog]
-    MCP --> TPL
-    API --> PKG[Agent Package Service]
-    MCP --> PKG
-    UI --> PUBLISH[User Wallet Publish Flow]
-    UI --> CHAIN[User Wallet Registry Calls]
-    API --> RUN[Workflow Run Orchestrator]
-    MCP --> RUN
-    API --> ACL[Policy and Access Control]
-    API --> AUDIT[Audit Service]
-    MCP --> AUDIT
+    API --> Templates[Template Catalog]
+    API --> Packages[Agent Package Service]
+    API --> Runtime[Workflow Runtime]
+    API --> Grants[Authorization Service]
+    API --> Audit[Audit and Trace Service]
+    API --> MCP[MCP Bridge]
 
-    RUN --> PLANNER[Planner Agent]
-    RUN --> SPECIALIST[Specialist Agent]
-    RUN --> EXECUTOR[Executor Agent]
+    Packages --> Storage[0G Storage]
+    Audit --> Storage
+    Runtime --> Router[0G Router API]
+    Router --> Compute[0G Private Computer]
+    Grants --> Registry[PrivateAgentRegistry]
+    Packages --> Registry
+    Registry --> Chain[0G Chain Mainnet]
 
-    PKG --> OGS[0G Storage]
-    PUBLISH --> OGS
-    AUDIT --> OGS
-    RUN --> OGCMP[0G Compute]
-    CHAIN --> OGC[0G Chain]
-    PKG --> REG[PrivateAgentRegistry]
-    ACL --> REG
-    REG --> OGC
-    PKG --> INFT[ERC-7857 Export Layer]
-    RUN --> ID[.0g / .robot Identity]
+    User --> Wallet[Wallet Signing]
+    Wallet --> Storage
+    Wallet --> Registry
 ```
 
-## A2A Workflow
+## Deployed Artifacts
+
+| Layer | Deployment |
+| --- | --- |
+| Frontend | https://private-agent-studio.vercel.app |
+| Studio route | https://private-agent-studio.vercel.app/studio |
+| Backend | https://private-agent-studio-backend-1064261519338.europe-west1.run.app |
+| 0G Chain | Mainnet, `chainId=16661` |
+| Registry contract | `0xd06ea0b9AD8935df0e823555F0433604B880711D` |
+| Registry explorer | https://chainscan.0g.ai/address/0xd06ea0b9AD8935df0e823555F0433604B880711D |
+| Deploy tx | https://chainscan.0g.ai/tx/0xb0aefbd872d057f80c09c4d80b7e47ab96211b2c51f4c015d1d232d5c7464e62 |
+| Compute API | `https://router-api.0g.ai/v1` |
+| Compute model | `0GM-1.0-35B-A3B` |
+
+## Product Lifecycle
 
 ```mermaid
 sequenceDiagram
     participant User
+    participant UI as Studio UI
     participant API as Backend API
-    participant Planner as Planner Agent
-    participant Research as Specialist Agent
-    participant Executor as Executor Agent
-    participant Store as 0G Storage
-    participant Compute as 0G Compute
+    participant Wallet
+    participant Storage as 0G Storage
+    participant Registry as 0G Registry
+    participant Compute as 0G Private Computer
 
-    User->>API: Run private workflow
-    API->>Store: Load encrypted agent package and memory
-    API->>Compute: Planner request
-    Compute-->>Planner: TEE-verified structured plan
-    Planner-->>API: Delegation tasks
-    API->>Compute: Specialist request(s)
-    Compute-->>Research: Private analysis outputs
-    Research-->>API: Structured intermediate results
-    API->>Compute: Executor request
-    Compute-->>Executor: Final action / response
-    API->>Store: Persist encrypted run trace
-    API-->>User: Final output + audit metadata
-```
+    User->>UI: Choose template and edit workflow
+    UI->>API: Save draft package
+    API-->>UI: Draft id, package hash, lifecycle status
 
-## Draft And Publish Flow
+    User->>UI: Publish package
+    UI->>API: Create publish intent
+    API-->>UI: Package metadata and storage payload
+    UI->>Wallet: Confirm owner-controlled publish
+    Wallet->>Storage: Publish package artifact
+    Storage-->>UI: Storage root / proof metadata
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant UI as Builder UI
-    participant API as Backend API
-    participant Wallet as User Wallet
-    participant Store as 0G Storage
-
-    User->>UI: Create multi-agent workflow draft
-    UI->>API: Save draft
-    API-->>UI: agentId + packageHash + publish-intent
-    UI->>Wallet: Request publish with user signer
-    Wallet->>Store: Upload encrypted package
-    Store-->>Wallet: storage root / tx metadata
-    UI->>API: Confirm publish
-    API-->>UI: Agent marked published
-```
-
-## Onchain Registration And Authorization
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant UI as Builder UI
-    participant API as Backend API
-    participant Wallet as User Wallet
-    participant Registry as PrivateAgentRegistry
-
-    UI->>API: Request onchain-registration-intent
-    API-->>UI: registerAgent calldata + hashes
+    UI->>API: Create registration intent
+    API-->>UI: Registry calldata and package proof
     UI->>Wallet: Sign registerAgent(...)
-    Wallet->>Registry: registerAgent(agentId, owner, packageHash, storageRoot, ...)
-    Registry-->>Wallet: tx hash
-    UI->>API: Confirm onchain registration
-    API-->>UI: Agent marked registered
-    UI->>API: Request authorization intent
-    API-->>UI: authorizeUsage calldata + scopeHash
+    Wallet->>Registry: Register ownership on 0G Chain
+    Registry-->>UI: Transaction hash
+
+    User->>UI: Authorize usage
+    UI->>API: Create usage grant intent
+    API-->>UI: Scoped grant calldata
     UI->>Wallet: Sign authorizeUsage(...)
-    Wallet->>Registry: authorizeUsage(agentId, grantee, scopeHash, expiresAt)
-    Registry-->>Wallet: tx hash
-    UI->>API: Confirm authorization
-    API-->>UI: Authorization marked active
+    Wallet->>Registry: Store usage grant
+
+    User->>UI: Run workflow
+    UI->>API: Start run
+    API->>Compute: Planner, specialist, executor calls with TEE verification
+    Compute-->>API: Output and trace metadata
+    API-->>UI: Final result and verification state
 ```
 
-## Privacy Model
+## Runtime Execution
 
-Private by default:
+The runtime path is deliberately narrow. The backend owns orchestration, while 0G Private Computer owns inference.
 
-- prompts
-- uploaded knowledge
-- long-term memory
-- intermediate A2A messages
-- run traces
-- secret tool credentials
+```mermaid
+sequenceDiagram
+    participant UI as Studio UI
+    participant API as Backend Runtime
+    participant Router as 0G Router API
+    participant Planner
+    participant Specialist
+    participant Executor
 
-Public or onchain:
+    UI->>API: POST /api/runs
+    API->>Router: planner request, verify_tee=true
+    Router-->>Planner: TEE-verified response trace
+    Planner-->>API: Structured plan
 
-- agent ownership
-- export / authorization rights
-- policy hashes
-- pricing / licensing references
-- final execution commitments or receipts
+    API->>Router: specialist request, verify_tee=true
+    Router-->>Specialist: TEE-verified response trace
+    Specialist-->>API: Analysis and intermediate output
 
-This is the honest split: reasoning can be private, while ownership and settlement can still be verifiable.
+    API->>Router: executor request, verify_tee=true
+    Router-->>Executor: TEE-verified response trace
+    Executor-->>API: Final answer
 
-## 0G Mapping
+    API-->>UI: Run result, agent steps, verification metadata
+```
 
-- `0G Storage`
-  - browser wallet publication path for user-owned packages
-  - encrypted agent packages
-  - uploaded knowledge
-  - long-context memory
-  - run traces
-  - audit events
-- `0G Compute`
-  - planner role execution
-  - specialist role execution
-  - executor role execution
-  - TEE verification through response processing
-  - optional direct API access for hosted runtime mode
-- `0G Chain`
-  - `PrivateAgentRegistry` for published-agent ownership
-  - package hash and storage root anchoring
-  - policy and workflow hash anchoring
-  - usage authorization state for API and MCP runtimes
-- `ERC-7857`
-  - exportable agent assets
-  - encrypted metadata
-  - clone / authorize / transfer path
-- `.0g` and `.robot`
-  - user and agent identity
-  - future A2A addressing and agent commerce
+The current production configuration requires TEE verification. If the 0G Router response does not provide the expected verification trace, the backend marks that state explicitly instead of presenting it as verified.
 
-## Core Backend Modules
+## Proof Boundaries
 
-- `Template Catalog`
-  - curated starting points for private research, treasury ops, and DAO ops
-- `Agent Package Service`
-  - creates local draft packages, privacy policies, role manifests, publish intents, and registration intents
-- `Workflow Run Orchestrator`
-  - runs planner, specialist, and executor roles in sequence
-- `Policy and Access Control`
-  - controls exportability, approvals, collaborator rights, and onchain usage grants
-- `Audit Service`
-  - records immutable run and lifecycle metadata
-- `PrivateAgentRegistry`
-  - minimal onchain registry for published agent ownership and usage rights
-- `MCP Bridge`
-  - exposes studio tools to OpenClaw and other MCP-compatible runtimes
-  - keeps agent invocation on the same backend control plane as the HTTP API
-  - export manifests now include an OpenClaw-compatible stdio server definition using `command`, `args`, `env`, and `cwd`
+| Boundary | Private / Offchain | Public / Verifiable |
+| --- | --- | --- |
+| Build | Draft workflow, prompts, role instructions, editable package state | Package hash once prepared for publish |
+| Publish | Full package contents and local editing state | Storage root and publish metadata |
+| Register | Internal lifecycle bookkeeping | Owner, package hash, storage root, policy hash, contract event |
+| Authorize | Product policy interpretation and UI state | Scoped grant hash, grantee, expiry, registry transaction |
+| Run | Prompt content, intermediate reasoning, orchestration details | TEE verification metadata, run receipts, optional trace commitments |
 
-## Core Entities
+This is the core product promise: private workflow contents can stay controlled while ownership and usage become externally provable.
 
-- `Template`
-  - prebuilt multi-agent workflow design
-- `Agent Package`
-  - reusable, private workflow definition owned by a wallet
-- `Agent Role`
-  - planner, specialist, executor, or other scoped worker
-- `Workflow Run`
-  - one execution instance of an agent package
-- `Audit Event`
-  - lifecycle event persisted for review
+## Backend Modules
 
-## Current Build Phases
+- `Template Catalog`: curated starting points for private workflows.
+- `Agent Package Service`: draft creation, package hashing, publish intents, and registration intents.
+- `Authorization Service`: scoped usage grant and revocation flows.
+- `Workflow Runtime`: planner, specialist, and executor orchestration.
+- `0G Compute Adapter`: OpenAI-compatible 0G Router integration with TEE verification handling.
+- `0G Chain Adapter`: registry configuration, chain metadata, and transaction intent support.
+- `0G Storage Adapter`: package publish and storage proof integration path.
+- `Audit and Trace Service`: lifecycle and runtime trace records.
+- `MCP Bridge`: exposes the same control plane to external agent runtimes without creating a separate product path.
 
-1. docs and product narrative aligned to Tracks 1, 5, and 3
-2. backend foundation for templates, private agent packages, and A2A run orchestration
-3. stronger validation and policy enforcement
-4. chain registration and authorization layer
-5. frontend builder and demo polish
+## Contract Role
+
+`PrivateAgentRegistry` is the onchain ownership and permission anchor. It is intentionally small:
+
+- register an agent package under an owner wallet
+- store package hash and storage root references
+- store workflow or policy hashes
+- create and revoke usage grants
+- expose read methods for product and judge verification
+
+The contract is not responsible for private prompt execution. Execution stays in the backend and 0G Compute path.
+
+## Security Model
+
+- Production secrets stay outside git.
+- The 0G Compute API key is stored in Google Secret Manager for Cloud Run.
+- The frontend receives only the public backend URL.
+- Wallet-controlled actions stay separated from backend-only lifecycle actions.
+- Runtime verification is represented from the 0G response trace, not hardcoded UI state.
+- Missing integration configuration should fail visibly instead of being hidden behind a mock success path.
+
+## Current Persistence Boundary
+
+The deployed Cloud Run service currently uses backend-managed local state for demo lifecycle records. That is sufficient for the hackathon proof path, but durable production state should move to a managed datastore before broader user onboarding.
+
+The important deployed proof is already external:
+
+- registry contract on 0G mainnet
+- explorer-visible deployment transaction
+- live Cloud Run backend
+- live Vercel frontend
+- live 0G Router compute execution with TEE verification metadata
+
+## Next Production Hardening
+
+- Move draft, package, grant, and run state into a durable database.
+- Persist run trace commitments to 0G Storage after each production run.
+- Add a user-facing wallet transaction review screen for every registry action.
+- Add a judge-friendly proof panel with registry address, storage root, run id, and TEE verification state in one place.
+- Add stricter role/package validation before publish.
