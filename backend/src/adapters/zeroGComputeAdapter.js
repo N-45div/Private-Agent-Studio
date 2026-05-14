@@ -23,8 +23,7 @@ export class ZeroGComputeAdapter {
   isDirectApiReady() {
     return Boolean(
       this.hasDirectApiCredentials() &&
-        this.config.zeroG.computeModel &&
-        !this.config.zeroG.computeRequireTee,
+        this.config.zeroG.computeModel,
     );
   }
 
@@ -398,16 +397,6 @@ export class ZeroGComputeAdapter {
     temperature = 0.1,
     requestedExecutionMode = "auto",
   }) {
-    if (this.config.zeroG.computeRequireTee) {
-      throw new AppError(
-        "Direct API mode is configured, but ZEROG_COMPUTE_REQUIRE_TEE=true. Direct API mode does not expose backend TEE verification here.",
-        {
-          code: "zerog_tee_verification_unavailable",
-          statusCode: 503,
-        },
-      );
-    }
-
     if (!this.config.zeroG.computeModel) {
       throw new AppError("Missing ZEROG_COMPUTE_MODEL for direct 0G Compute API access", {
         code: "zerog_config_missing",
@@ -424,6 +413,7 @@ export class ZeroGComputeAdapter {
       body: JSON.stringify({
         model: this.config.zeroG.computeModel,
         temperature,
+        verify_tee: this.config.zeroG.computeRequireTee,
         messages: [
           {
             role: "system",
@@ -452,6 +442,22 @@ export class ZeroGComputeAdapter {
     const data = await response.json();
     const message = data?.choices?.[0]?.message?.content;
     const parsed = extractJsonObject(message);
+    const teeVerified =
+      data?.trace?.tee_verified ??
+      data?.trace?.teeVerified ??
+      data?.tee_verified ??
+      data?.teeVerified ??
+      null;
+
+    if (this.config.zeroG.computeRequireTee && teeVerified !== true) {
+      throw new AppError("0G Compute direct API TEE verification failed", {
+        code: "zerog_tee_verification_failed",
+        statusCode: 502,
+        details: {
+          trace: data?.trace || null,
+        },
+      });
+    }
 
     return {
       ...parsed,
@@ -462,7 +468,7 @@ export class ZeroGComputeAdapter {
         providerAddress: this.config.zeroG.computeProvider || "direct-api",
         model: this.config.zeroG.computeModel,
         chatId: data?.id || null,
-        teeVerified: null,
+        teeVerified,
       },
     };
   }

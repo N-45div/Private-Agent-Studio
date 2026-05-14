@@ -62,7 +62,7 @@ test("FileStore serializes concurrent transactions without losing updates", asyn
   assert.deepEqual(state.runs.map((item) => item.id), ["run_one"]);
 });
 
-test("ZeroGComputeAdapter auto mode only selects direct API when it is fully ready", () => {
+test("ZeroGComputeAdapter auto mode selects direct API when router credentials and model are present", () => {
   const partialDirect = new ZeroGComputeAdapter(
     createConfig({
       computeApiKey: "app-sk-test",
@@ -71,19 +71,19 @@ test("ZeroGComputeAdapter auto mode only selects direct API when it is fully rea
       computeRequireTee: true,
     }),
   );
-  assert.equal(partialDirect.resolveExecutionMode("auto"), "zerog_broker");
-  assert.equal(partialDirect.isDirectApiReady(), false);
+  assert.equal(partialDirect.resolveExecutionMode("auto"), "zerog_direct_api");
+  assert.equal(partialDirect.isDirectApiReady(), true);
 
-  const readyDirect = new ZeroGComputeAdapter(
+  const missingModel = new ZeroGComputeAdapter(
     createConfig({
       computeApiKey: "app-sk-test",
       computeApiBase: "https://compute.0g.ai/v1",
-      computeModel: "glm-5",
-      computeRequireTee: false,
+      computeModel: "",
+      computeRequireTee: true,
     }),
   );
-  assert.equal(readyDirect.resolveExecutionMode("auto"), "zerog_direct_api");
-  assert.equal(readyDirect.isDirectApiReady(), true);
+  assert.equal(missingModel.resolveExecutionMode("auto"), "zerog_broker");
+  assert.equal(missingModel.isDirectApiReady(), false);
 });
 
 test("WorkflowRunService completes runs without a backend signer by persisting traces locally", async () => {
