@@ -1,6 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
+import { fileURLToPath } from "node:url";
+
+const shim = (pathname) => fileURLToPath(new URL(pathname, import.meta.url));
 
 export default defineConfig({
   plugins: [
@@ -20,10 +23,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      fs: "/home/divij/vincent/agentvault/frontend/src/shims/empty.js",
-      path: "/home/divij/vincent/agentvault/frontend/src/shims/path.js",
-      "node:fs/promises": "/home/divij/vincent/agentvault/frontend/src/shims/empty.js",
-      "fs/promises": "/home/divij/vincent/agentvault/frontend/src/shims/empty.js",
+      fs: shim("./src/shims/empty.js"),
+      path: shim("./src/shims/path.js"),
+      "node:fs/promises": shim("./src/shims/empty.js"),
+      "fs/promises": shim("./src/shims/empty.js"),
     },
   },
   server: {
