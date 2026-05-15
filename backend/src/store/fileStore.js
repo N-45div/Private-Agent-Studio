@@ -1,15 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-
-const DEFAULT_STATE = {
-  vaults: [],
-  proposals: [],
-  executions: [],
-  auditEvents: [],
-  agents: [],
-  runs: [],
-};
+import { DEFAULT_STATE, normalizeState } from "./defaultState.js";
 
 export class FileStore {
   constructor(filePath) {
@@ -21,10 +13,7 @@ export class FileStore {
     try {
       const raw = await fs.readFile(this.filePath, "utf8");
       const parsed = JSON.parse(raw);
-      return {
-        ...structuredClone(DEFAULT_STATE),
-        ...parsed,
-      };
+      return normalizeState(parsed);
     } catch (error) {
       if (error.code === "ENOENT") {
         await this.writeState(DEFAULT_STATE);
@@ -58,5 +47,14 @@ export class FileStore {
 
   createId(prefix) {
     return `${prefix}_${randomUUID()}`;
+  }
+
+  describe() {
+    return {
+      kind: "file",
+      durable: false,
+      encrypted: false,
+      path: this.filePath,
+    };
   }
 }

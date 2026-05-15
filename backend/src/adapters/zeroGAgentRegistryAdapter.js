@@ -77,6 +77,38 @@ export class ZeroGAgentRegistryAdapter {
     };
   }
 
+  async updateAgent(payload) {
+    const tx = await this.getContract().updateAgent(
+      payload.agentId,
+      payload.packageHash,
+      payload.storageRoot,
+      payload.policyHash,
+      payload.metadataHash,
+      payload.workflowHash,
+    );
+    const receipt = await tx.wait();
+
+    return {
+      txHash: receipt?.hash || tx.hash,
+      explorerUrl: `${this.config.zeroG.explorerBaseUrl}${receipt?.hash || tx.hash}`,
+    };
+  }
+
+  async getAgent(agentId) {
+    const record = await this.getContract().getAgent(agentId);
+    return {
+      owner: record.agentOwner,
+      packageHash: record.latestPackageHash,
+      storageRoot: record.latestStorageRoot,
+      policyHash: record.latestPolicyHash,
+      metadataHash: record.latestMetadataHash,
+      workflowHash: record.latestWorkflowHash,
+      createdAt: Number(record.createdAt || 0),
+      updatedAt: Number(record.updatedAt || 0),
+      exists: Boolean(record.exists),
+    };
+  }
+
   buildAuthorizeUsageCall({ agentId, grantee, scopeHash, expiresAt }) {
     const args = [agentId, grantee, scopeHash, expiresAt];
     return {

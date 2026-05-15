@@ -93,4 +93,23 @@ export class ZeroGStorageAdapter {
       await fs.rm(tempPath, { force: true });
     }
   }
+
+  async readDocument(rootHash) {
+    const outputPath = path.join(os.tmpdir(), `agentvault-read-${randomUUID()}.json`);
+
+    try {
+      const error = await this.getIndexer().download(rootHash, outputPath, false);
+      if (error) {
+        throw new AppError("0G Storage download failed", {
+          code: "zerog_storage_download_failed",
+          statusCode: 502,
+          details: { rootHash, cause: error.message },
+        });
+      }
+
+      return JSON.parse(await fs.readFile(outputPath, "utf8"));
+    } finally {
+      await fs.rm(outputPath, { force: true });
+    }
+  }
 }

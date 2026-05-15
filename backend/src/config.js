@@ -2,6 +2,7 @@ import "dotenv/config";
 import path from "node:path";
 
 const network = process.env.ZEROG_NETWORK || "testnet";
+const privateKey = process.env.PRIVATE_KEY || "";
 const rpcUrl =
   process.env.ZEROG_RPC_URL ||
   (network === "mainnet" ? "https://evmrpc.0g.ai" : "https://evmrpc-testnet.0g.ai");
@@ -30,11 +31,18 @@ export const config = {
   port: Number.parseInt(process.env.PORT || "4000", 10),
   host: process.env.HOST || (process.env.PORT ? "0.0.0.0" : "127.0.0.1"),
   dataFile: path.join(process.cwd(), "data", "state.json"),
+  stateStore:
+    process.env.STATE_STORE ||
+    (process.env.PORT && privateKey ? "zerog_snapshot" : "file"),
+  stateKey: process.env.PRIVATE_AGENT_STATE_KEY || "private-agent-studio/state/main",
+  statePointerAgentId: process.env.PRIVATE_AGENT_STATE_POINTER_ID || "private-agent-studio-state",
+  stateStreamId: process.env.PRIVATE_AGENT_STATE_STREAM_ID || "",
+  stateEncryptionKey: process.env.PRIVATE_AGENT_STATE_ENCRYPTION_KEY || privateKey,
   zeroG: {
     network,
     chainId,
     rpcUrl,
-    privateKey: process.env.PRIVATE_KEY || "",
+    privateKey,
     explorerBaseUrl:
       network === "mainnet"
         ? "https://chainscan.0g.ai/tx/"

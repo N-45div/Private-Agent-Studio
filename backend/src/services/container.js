@@ -1,5 +1,7 @@
 import { config } from "../config.js";
 import { FileStore } from "../store/fileStore.js";
+import { ZeroGStateStore } from "../store/zeroGStateStore.js";
+import { ZeroGSnapshotStateStore } from "../store/zeroGSnapshotStateStore.js";
 import { ZeroGStorageAdapter } from "../adapters/zeroGStorageAdapter.js";
 import { ZeroGChainAdapter } from "../adapters/zeroGChainAdapter.js";
 import { ZeroGAgentRegistryAdapter } from "../adapters/zeroGAgentRegistryAdapter.js";
@@ -16,10 +18,15 @@ import { ProposalService } from "./proposalService.js";
 import { ExecutionService } from "./executionService.js";
 
 export function createServiceContainer() {
-  const store = new FileStore(config.dataFile);
+  const fileStore = new FileStore(config.dataFile);
   const storageAdapter = new ZeroGStorageAdapter(config);
   const chainAdapter = new ZeroGChainAdapter(config);
   const agentRegistryAdapter = new ZeroGAgentRegistryAdapter(config);
+  const store = config.stateStore === "zerog_kv"
+    ? new ZeroGStateStore(config, fileStore)
+    : config.stateStore === "zerog_snapshot"
+      ? new ZeroGSnapshotStateStore(config, fileStore, storageAdapter, agentRegistryAdapter)
+      : fileStore;
   const computeAdapter = new ZeroGComputeAdapter(config);
   const marketDataAdapter = new MarketDataAdapter();
 
@@ -69,6 +76,7 @@ export function createServiceContainer() {
       proposalService,
       executionService,
       computeAdapter,
+      store,
     },
   };
 }

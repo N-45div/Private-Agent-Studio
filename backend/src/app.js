@@ -16,6 +16,7 @@ const {
     proposalService,
     executionService,
     computeAdapter,
+    store,
   },
 } = createServiceContainer();
 
@@ -544,6 +545,7 @@ export async function handleRequest(request, response) {
         network: config.zeroG.network,
         chainId: config.zeroG.chainId,
         rpcUrl: config.zeroG.rpcUrl,
+        stateStore: store.describe?.() || { kind: config.stateStore },
         readiness: {
           hasPrivateKey: Boolean(config.zeroG.privateKey),
           hasRegistry: Boolean(config.zeroG.registryAddress),
