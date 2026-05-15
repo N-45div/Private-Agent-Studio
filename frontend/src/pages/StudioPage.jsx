@@ -303,8 +303,39 @@ function InlineNotice({ tone = "info", message }) {
   };
 
   return (
-    <div className={classNames("rounded-[1.05rem] border px-4 py-3 text-sm", palette[tone] || palette.info)}>
+    <div className={classNames("break-words rounded-[1.05rem] border px-4 py-3 text-sm", palette[tone] || palette.info)}>
       {message}
+    </div>
+  );
+}
+
+function ToastStack({ toasts }) {
+  const visibleToasts = toasts.filter((toast) => toast?.message);
+
+  if (!visibleToasts.length) {
+    return null;
+  }
+
+  const palette = {
+    info: "border-accent/25 bg-[#17110d]/95 text-accent shadow-[0_24px_64px_-32px_rgba(197,122,74,0.7)]",
+    success: "border-accent/25 bg-[#17110d]/95 text-accent shadow-[0_24px_64px_-32px_rgba(197,122,74,0.7)]",
+    error: "border-[#8e4330]/35 bg-[#21110d]/95 text-[#efb197] shadow-[0_24px_64px_-32px_rgba(142,67,48,0.8)]",
+  };
+
+  return (
+    <div className="fixed bottom-5 left-5 z-50 grid w-[min(28rem,calc(100vw-2.5rem))] gap-3 pointer-events-none">
+      {visibleToasts.map((toast) => (
+        <div
+          key={`${toast.id}-${toast.message}`}
+          className={classNames(
+            "rounded-[1.2rem] border px-4 py-3 text-sm leading-6 backdrop-blur-xl pointer-events-auto break-words",
+            palette[toast.tone] || palette.info,
+          )}
+        >
+          <div className="font-mono text-[10px] uppercase tracking-[0.22em] opacity-70">{toast.label}</div>
+          <div className="mt-1 whitespace-pre-wrap">{toast.message}</div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1021,6 +1052,16 @@ export function StudioPage() {
   const selectedTemplate =
     templates.find((template) => template.id === selectedTemplateId) || templates[0] || null;
   const selectedAgent = selectedAgentState.agent;
+  const toastMessages = [
+    screenError ? { id: "screen-error", label: "Action failed", tone: "error", message: screenError } : null,
+    infoMessage ? { id: "screen-info", label: "Studio update", tone: "info", message: infoMessage } : null,
+    publishNotices.storage?.message
+      ? { id: "storage-notice", label: "0G Storage", ...publishNotices.storage }
+      : null,
+    publishNotices.registry?.message
+      ? { id: "registry-notice", label: "0G Registry", ...publishNotices.registry }
+      : null,
+  ].filter(Boolean);
   const activeWorkflow = selectedAgent?.workflow || selectedTemplate
     ? {
         executionModel: selectedAgent?.workflow?.executionModel || "multi_agent_a2a",
@@ -1721,16 +1762,7 @@ export function StudioPage() {
           onSelectAgent={handleSelectAgent}
         />
 
-        {screenError ? (
-          <div className="rounded-[1.35rem] border border-[#8e4330]/25 bg-[#8e4330]/20 px-4 py-3 text-sm text-[#efb197]">
-            {screenError}
-          </div>
-        ) : null}
-        {infoMessage ? (
-          <div className="rounded-[1.35rem] border border-accent/20 bg-accent/10 px-4 py-3 text-sm text-accent">
-            {infoMessage}
-          </div>
-        ) : null}
+        <ToastStack toasts={toastMessages} />
 
         <div className="grid gap-6 xl:grid-cols-[15rem_minmax(0,1fr)] 2xl:grid-cols-[15rem_minmax(0,1fr)]">
           <aside className="space-y-4 xl:sticky xl:top-[6.6rem] xl:h-[calc(100dvh-8rem)]">
@@ -2095,7 +2127,6 @@ export function StudioPage() {
                         </div>
                         {selectedAgentState.publishIntent ? (
                           <>
-                            <InlineNotice tone={publishNotices.storage?.tone} message={publishNotices.storage?.message} />
                             <div className="metric-card">
                               <div className="flex flex-wrap items-center justify-between gap-4">
                                 <div>
@@ -2173,7 +2204,6 @@ export function StudioPage() {
                         </div>
                         {selectedAgentState.registrationIntent ? (
                           <>
-                            <InlineNotice tone={publishNotices.registry?.tone} message={publishNotices.registry?.message} />
                             <form onSubmit={handleConfirmRegistration} className="grid gap-4">
                               <FormField label="Registrant wallet">
                                 <Input value={registrationForm.registrant} onChange={(event) => updateRegistrationForm("registrant", event.target.value)} />
