@@ -1,101 +1,120 @@
 # Private Agent Studio
 
-Private Agent Studio is a private agent builder and lifecycle control plane on 0G. It helps a non-technical user create a multi-agent workflow, publish the agent package, prove ownership on 0G Chain, grant scoped access, and run TEE-verified inference through 0G Private Computer.
+Private Agent Studio turns a private workflow into an ownable, permissioned, and executable AI agent on 0G.
 
-The product is not another prompt playground. It is a studio for turning a private workflow into an ownable, verifiable agent asset.
+It is built for teams that want agents to become real product assets, not just prompts saved inside a SaaS account. A user can build an agent from a guided workspace, publish the package to 0G Storage, anchor ownership and usage rights on 0G Chain, run the workflow through 0G Private Computer, and hand the agent to an MCP-compatible runtime such as OpenClaw.
 
 ## Live Product
 
-- App: https://private-agent-studio.vercel.app
-- Studio: https://private-agent-studio.vercel.app/studio
-- Backend: https://private-agent-studio-backend-1064261519338.europe-west1.run.app
-- 0G mainnet registry: `0xd06ea0b9AD8935df0e823555F0433604B880711D`
-- Registry explorer: https://chainscan.0g.ai/address/0xd06ea0b9AD8935df0e823555F0433604B880711D
-- Deployment transaction: https://chainscan.0g.ai/tx/0xb0aefbd872d057f80c09c4d80b7e47ab96211b2c51f4c015d1d232d5c7464e62
-- 0G Compute model: `0GM-1.0-35B-A3B`
+| Surface | Link |
+| --- | --- |
+| Product app | https://private-agent-studio.vercel.app |
+| Studio workspace | https://private-agent-studio.vercel.app/studio |
+| Backend API | https://private-agent-studio-backend-1064261519338.europe-west1.run.app |
+| 0G registry contract | `0xd06ea0b9AD8935df0e823555F0433604B880711D` |
+| Registry explorer | https://chainscan.0g.ai/address/0xd06ea0b9AD8935df0e823555F0433604B880711D |
+| Contract deployment tx | https://chainscan.0g.ai/tx/0xb0aefbd872d057f80c09c4d80b7e47ab96211b2c51f4c015d1d232d5c7464e62 |
 
-## Product Intro
+Production is configured for 0G mainnet (`chainId=16661`) and 0G Router / Private Computer using `0GM-1.0-35B-A3B`.
 
-Most agent builders make it easy to test an idea, but hard to own it.
+## The Product
 
-Private Agent Studio is built around the full lifecycle of a real private agent:
+Private Agent Studio is a control plane for private agent ownership.
 
-1. Build a workflow from a guided canvas.
-2. Publish the agent package through the owner-controlled flow.
-3. Register package proof and ownership on 0G Chain.
-4. Authorize another wallet, app, or runtime to use it.
-5. Run the workflow with TEE-verified 0G inference.
+The user starts with a guided builder, selects a workflow template, and produces a private agent package. The package can then be published, registered, authorized, executed, and exported as a ready-made MCP server. Each stage has a clear product purpose:
 
-That makes the agent more than a saved prompt. It becomes a private, portable workflow with verifiable ownership and controlled usage.
+| Stage | Product Job |
+| --- | --- |
+| Build | Shape a private multi-agent workflow without exposing raw technical configuration. |
+| Publish | Produce a durable package artifact and storage root on 0G Storage. |
+| Register | Anchor ownership, package hash, storage root, and policy hashes on 0G Chain. |
+| Authorize | Grant scoped usage rights to a wallet, app, or runtime. |
+| Run | Execute the workflow through 0G Private Computer with TEE verification requested. |
+| Handoff | Export the agent as hosted API and agent-specific MCP tools. |
 
-## Why This Matters
+The result is a private agent that can be owned, licensed, verified, and used outside the Studio.
 
-AI agents are becoming reusable assets, but most builders do not solve the hard parts around privacy, provenance, and permissioning.
+## Why It Matters
 
-Private Agent Studio focuses on that gap:
+Agent builders today are strong at prototyping but weak at ownership, privacy, and transferability. A serious team needs to answer harder questions:
 
-- A founder can package a private operating workflow without exposing the full prompt stack.
-- A team can prove which wallet owns an agent package.
-- A reviewer can inspect the lifecycle: build, publish, register, authorize, run.
-- A runtime can execute through the same backend control plane instead of bypassing product policy.
-- 0G gives the product storage, chain, and compute rails that fit the agent lifecycle directly.
+- Who owns this agent package?
+- Which version was published?
+- Where is the agent state stored?
+- Who is allowed to run it?
+- Can another runtime use it without bypassing policy?
+- Can a judge or customer verify that the 0G integration is real?
 
-## Product Flow
-
-### 1. Build
-
-The studio starts with a clean builder flow instead of a technical settings dump. The user chooses a template, edits the agent roles, reviews the package shape, and keeps the draft private until they are ready to publish.
-
-### 2. Publish
-
-Publishing turns the draft into a package with a stable hash and storage proof path. This separates the private build step from the public proof step.
-
-### 3. Register
-
-The `PrivateAgentRegistry` contract anchors ownership and package metadata on 0G mainnet. The registered address becomes the judge-visible proof that the product is deployed on the ecosystem, not just simulated locally.
-
-### 4. Authorize
-
-Owners can create scoped usage grants. This is the foundation for private agent licensing, delegated execution, and future MCP/OpenClaw-style runtime access.
-
-### 5. Run
-
-The runtime executes a planner, specialist, and executor workflow through 0G Router. Requests are sent with TEE verification enabled, and the backend records trace metadata so the product can show which run used verified 0G inference.
+Private Agent Studio answers those questions with 0G-native rails instead of treating blockchain as a decorative proof badge.
 
 ## 0G Integration
 
-Private Agent Studio uses 0G as the product backbone:
-
-| 0G Component | Product Role |
+| 0G Component | How Private Agent Studio Uses It |
 | --- | --- |
-| 0G Chain | Mainnet `PrivateAgentRegistry` for agent ownership, package hashes, storage roots, and usage grants. |
-| 0G Storage | Package and proof layer for published agent assets and long-term run artifacts. |
-| 0G Private Computer | TEE-verified inference for the planner, specialist, and executor workflow. |
-| 0G Router API | OpenAI-compatible runtime endpoint used by the backend execution path. |
+| 0G Storage | Published agent packages, run traces, audit artifacts, and encrypted Studio state snapshots. |
+| 0G Chain | Mainnet `PrivateAgentRegistry` for agent ownership, package roots, usage grants, and the encrypted state snapshot pointer. |
+| 0G Private Computer | Runtime inference path for planner, specialist, and executor calls with TEE verification requested. |
+| 0G Router API | OpenAI-compatible production endpoint used by the backend runtime. |
 
-This positions the project strongest for the 0G APAC Hackathon agent infrastructure track, with a clear secondary fit for privacy/sovereign infrastructure and agent economy flows.
+The backend no longer relies on container-local state for production continuity. Studio state is encrypted, uploaded as a 0G Storage snapshot, and referenced through the 0G registry pointer record `private-agent-studio-state`.
 
-## Current Proof
+## MCP Handoff
 
-- The frontend is live on Vercel.
-- The backend is live on Google Cloud Run.
-- The registry contract is deployed on 0G mainnet.
-- Backend health reports 0G mainnet `chainId=16661` with the registry configured.
-- 0G Compute diagnostics confirm the router API is reachable.
-- A live workflow run completed through the planner, specialist, and executor path with TEE verification reported by the 0G response trace.
+Each created agent exposes an agent-specific MCP server over Streamable HTTP using the official Model Context Protocol TypeScript SDK.
+
+For a `Board Research Capsule` agent, the generated tools look like:
+
+```txt
+board_research_capsule.run
+board_research_capsule.summarize
+board_research_capsule.evidence
+```
+
+The MCP surface also exposes resources for the manifest, 0G proof, and runbook. This means OpenClaw or another MCP runtime can attach to the created agent directly instead of calling a generic Studio wrapper.
+
+## Current Live Proof
+
+- Vercel frontend is live.
+- Cloud Run backend is live.
+- 0G mainnet registry contract is deployed.
+- Agent package publish flow supports 0G Storage.
+- Studio state persists through encrypted 0G Storage snapshots.
+- A fresh Cloud Run revision was deployed and the backend recovered the agent list from the 0G-backed state pointer.
+- Per-agent MCP endpoints initialize through the official MCP SDK and expose agent-specific tools.
 
 ## Repository Map
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md): production topology, lifecycle diagrams, and proof boundaries
-- [`backend/`](backend): API server, 0G adapters, lifecycle services, runtime orchestration, MCP bridge
-- [`contracts/`](contracts): `PrivateAgentRegistry` smart contract package
-- [`frontend/`](frontend): Vercel-hosted Studio UI and lifecycle console
+| Path | Purpose |
+| --- | --- |
+| [`frontend/`](frontend) | Studio UI, lifecycle workspace, handoff screen, and production Vercel app. |
+| [`backend/`](backend) | API server, 0G adapters, encrypted state persistence, runtime orchestration, and MCP endpoints. |
+| [`contracts/`](contracts) | `PrivateAgentRegistry` contract used for ownership, roots, and usage grants. |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Technical topology and trust boundaries. |
+| [`docs/PRODUCT_DESCRIPTION.md`](docs/PRODUCT_DESCRIPTION.md) | HackQuest-ready product description and deployment copy. |
+| [`docs/PITCH_DECK.md`](docs/PITCH_DECK.md) | Slide-by-slide pitch deck content. |
+| [`docs/DEMO_SCRIPTS.md`](docs/DEMO_SCRIPTS.md) | Product demo and technical video scripts. |
 
-## Environment
+## Local Development
 
-Use the example files as templates:
+Backend:
+
+```bash
+cd backend
+npm install
+npm start
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Environment templates:
 
 - [`backend/.env.example`](backend/.env.example)
 - [`frontend/.env.example`](frontend/.env.example)
 
-Secrets are intentionally not committed. The production backend reads the 0G Compute key from Google Secret Manager, and the frontend only needs the public backend URL.
+Secrets are not committed. Production reads the 0G private key and 0G Compute API key from managed deployment secrets.
