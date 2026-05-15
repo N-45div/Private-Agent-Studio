@@ -57,6 +57,44 @@ function buildExecutorPrompt(agent, runRequest, plan, specialistOutput) {
   };
 }
 
+function normalizeRuntimeText(value) {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return JSON.stringify(value, null, 2);
+}
+
+function normalizeDelegatedTasks(tasks, maxSteps) {
+  if (!Array.isArray(tasks)) {
+    return [];
+  }
+
+  return tasks.slice(0, maxSteps).map((task, index) => {
+    if (!task || typeof task !== "object" || Array.isArray(task)) {
+      return {
+        id: `task_${index + 1}`,
+        ownerRole: "task",
+        objective: normalizeRuntimeText(task),
+      };
+    }
+
+    return {
+      id: normalizeRuntimeText(task.id) || `task_${index + 1}`,
+      ownerRole: normalizeRuntimeText(task.ownerRole) || "task",
+      objective: normalizeRuntimeText(task.objective || task.summary || task),
+    };
+  });
+}
+
 export class WorkflowRunService {
   constructor(store, computeAdapter, storageAdapter, auditService, templateService) {
     this.store = store;
@@ -103,7 +141,7 @@ export class WorkflowRunService {
         ...buildPlannerPrompt(agent, runRequest),
         ...executionOptions,
       });
-      const delegatedTasks = Array.isArray(plan.tasks) ? plan.tasks.slice(0, agent.policy.maxStepsPerRun) : [];
+      const delegatedTasks = normalizeDelegatedTasks(plan.tasks, agent.policy.maxStepsPerRun);
       const specialistOutput = await this.computeAdapter.runStructuredJsonPrompt(
         {
           ...buildSpecialistPrompt(agent, runRequest, { ...plan, tasks: delegatedTasks }),
@@ -157,9 +195,9 @@ export class WorkflowRunService {
         }
 
         existing.status = "completed";
-        existing.output = executorOutput.finalOutput || "";
+        existing.output = normalizeRuntimeText(executorOutput.finalOutput);
         existing.approvalRequired = Boolean(executorOutput.approvalRequired);
-        existing.planSummary = plan.summary || "";
+        existing.planSummary = normalizeRuntimeText(plan.summary);
         existing.delegatedTasks = delegatedTasks;
         existing.runtime = runRequest.runtime;
         existing.compute = computeSummary;

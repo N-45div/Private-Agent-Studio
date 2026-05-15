@@ -138,6 +138,18 @@ function prettifyJson(value) {
   return JSON.stringify(value, null, 2);
 }
 
+function renderText(value, fallback = "Unavailable") {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return JSON.stringify(value, null, 2);
+}
+
 function splitCommaSeparated(value) {
   return value
     .split(",")
@@ -248,7 +260,7 @@ function DataTag({ label, value }) {
   return (
     <div className="metric-card">
       <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">{label}</div>
-      <div className="mt-2 text-sm font-semibold text-ink">{value}</div>
+      <div className="mt-2 text-sm font-semibold text-ink">{renderText(value)}</div>
     </div>
   );
 }
@@ -274,7 +286,7 @@ function InlineStat({ label, value }) {
   return (
     <div className="min-w-0">
       <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold text-ink">{value}</div>
+      <div className="mt-1 truncate text-sm font-semibold text-ink">{renderText(value)}</div>
     </div>
   );
 }
@@ -2445,24 +2457,24 @@ export function StudioPage() {
                           {run.output ? (
                             <div className="mt-5 rounded-[1.25rem] border border-accent/20 bg-accent/10 p-4">
                               <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-accent">Final output</div>
-                              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-ink">{run.output}</p>
+                              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-ink">{renderText(run.output)}</p>
                             </div>
                           ) : null}
                           {run.planSummary ? (
                             <div className="mt-4 rounded-[1.25rem] border border-white/10 bg-black/15 p-4">
                               <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">Planner summary</div>
-                              <p className="mt-3 text-sm leading-7 text-muted">{run.planSummary}</p>
+                              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted">{renderText(run.planSummary)}</p>
                             </div>
                           ) : null}
                           {run.delegatedTasks?.length ? (
                             <div className="mt-4 grid gap-3">
                               {run.delegatedTasks.map((task) => (
-                                <div key={task.id} className="rounded-[1rem] border border-white/10 bg-black/15 p-4">
+                                <div key={renderText(task.id, task.objective || "task")} className="rounded-[1rem] border border-white/10 bg-black/15 p-4">
                                   <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">{task.id}</div>
-                                    <StatusBadge value={task.ownerRole || "task"} />
+                                    <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">{renderText(task.id, "task")}</div>
+                                    <StatusBadge value={renderText(task.ownerRole, "task")} />
                                   </div>
-                                  <p className="mt-3 text-sm leading-7 text-muted">{task.objective}</p>
+                                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted">{renderText(task.objective)}</p>
                                 </div>
                               ))}
                             </div>
