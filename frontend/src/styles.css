@@ -246,6 +246,17 @@ body::after {
   animation: reveal 800ms cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
+.toast-card {
+  animation: toast-enter 180ms ease-out both;
+}
+
+.toast-timeline {
+  animation-name: toast-timeline;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  transform-origin: left center;
+}
+
 .reveal-delay-1 {
   animation-delay: 110ms;
 }
@@ -276,4 +287,26 @@ body::after {
 
 .thin-scrollbar::-webkit-scrollbar-track {
   background: transparent;
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-timeline {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
 }

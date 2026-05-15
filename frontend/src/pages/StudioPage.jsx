@@ -309,33 +309,78 @@ function InlineNotice({ tone = "info", message }) {
   );
 }
 
-function ToastStack({ toasts }) {
-  const visibleToasts = toasts.filter((toast) => toast?.message);
+function ToastStack({ toasts, durationMs = 6500 }) {
+  const incomingToasts = toasts.filter((toast) => toast?.message);
+  const toastSignature = incomingToasts.map((toast) => `${toast.id}-${toast.message}`).join("|");
+  const [visibleKeys, setVisibleKeys] = useState([]);
+
+  useEffect(() => {
+    if (!incomingToasts.length) {
+      setVisibleKeys([]);
+      return undefined;
+    }
+
+    const keys = incomingToasts.map((toast) => `${toast.id}-${toast.message}`);
+    setVisibleKeys((current) => Array.from(new Set([...current, ...keys])));
+
+    const timers = keys.map((key) =>
+      window.setTimeout(() => {
+        setVisibleKeys((current) => current.filter((item) => item !== key));
+      }, durationMs),
+    );
+
+    return () => {
+      timers.forEach(window.clearTimeout);
+    };
+  }, [durationMs, toastSignature]);
+
+  const visibleToasts = incomingToasts.filter((toast) => visibleKeys.includes(`${toast.id}-${toast.message}`));
 
   if (!visibleToasts.length) {
     return null;
   }
 
   const palette = {
-    info: "border-accent/25 bg-[#17110d]/95 text-accent shadow-[0_24px_64px_-32px_rgba(197,122,74,0.7)]",
-    success: "border-accent/25 bg-[#17110d]/95 text-accent shadow-[0_24px_64px_-32px_rgba(197,122,74,0.7)]",
-    error: "border-[#8e4330]/35 bg-[#21110d]/95 text-[#efb197] shadow-[0_24px_64px_-32px_rgba(142,67,48,0.8)]",
+    info: {
+      card: "border-accent/25 bg-[#17110d]/95 text-accent shadow-[0_24px_64px_-32px_rgba(197,122,74,0.7)]",
+      bar: "bg-accent",
+    },
+    success: {
+      card: "border-accent/25 bg-[#17110d]/95 text-accent shadow-[0_24px_64px_-32px_rgba(197,122,74,0.7)]",
+      bar: "bg-accent",
+    },
+    error: {
+      card: "border-[#8e4330]/35 bg-[#21110d]/95 text-[#efb197] shadow-[0_24px_64px_-32px_rgba(142,67,48,0.8)]",
+      bar: "bg-[#efb197]",
+    },
   };
 
   return (
-    <div className="fixed bottom-5 left-5 z-50 grid w-[min(28rem,calc(100vw-2.5rem))] gap-3 pointer-events-none">
-      {visibleToasts.map((toast) => (
-        <div
-          key={`${toast.id}-${toast.message}`}
-          className={classNames(
-            "rounded-[1.2rem] border px-4 py-3 text-sm leading-6 backdrop-blur-xl pointer-events-auto break-words",
-            palette[toast.tone] || palette.info,
-          )}
-        >
-          <div className="font-mono text-[10px] uppercase tracking-[0.22em] opacity-70">{toast.label}</div>
-          <div className="mt-1 whitespace-pre-wrap">{toast.message}</div>
-        </div>
-      ))}
+    <div className="fixed right-4 top-24 z-50 grid w-[min(26rem,calc(100vw-2rem))] gap-3 pointer-events-none sm:right-6">
+      {visibleToasts.map((toast) => {
+        const tone = palette[toast.tone] || palette.info;
+
+        return (
+          <div
+            key={`${toast.id}-${toast.message}`}
+            className={classNames(
+              "toast-card overflow-hidden rounded-[1.2rem] border text-sm leading-6 backdrop-blur-xl pointer-events-auto break-words",
+              tone.card,
+            )}
+          >
+            <div className="px-4 pb-3 pt-3">
+              <div className="font-mono text-[10px] uppercase tracking-[0.22em] opacity-70">{toast.label}</div>
+              <div className="mt-1 whitespace-pre-wrap">{toast.message}</div>
+            </div>
+            <div className="h-1 bg-white/10">
+              <div
+                className={classNames("toast-timeline h-full rounded-full", tone.bar)}
+                style={{ animationDuration: `${durationMs}ms` }}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
