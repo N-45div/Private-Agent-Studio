@@ -1,5 +1,3 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { keccakJson } from "../lib/hash.js";
 import { AppError } from "../lib/errors.js";
 import {
@@ -59,8 +57,6 @@ function joinUrl(baseUrl, pathname) {
 
   return `${baseUrl.replace(/\/+$/, "")}${pathname}`;
 }
-
-const backendDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 export class StudioAgentService {
   constructor(store, config, storageAdapter, agentRegistryAdapter, auditService, templateService) {
@@ -739,23 +735,6 @@ export class StudioAgentService {
     const authorizations = agent.authorizations || [];
     const activeAuthorizations = authorizations.filter((authorization) => authorization.status === "active");
     const baseUrl = options.baseUrl || "";
-    const openClawServerDefinition = {
-      command: "npm",
-      args: ["run", "mcp"],
-      cwd: backendDirectory,
-      env: {
-        ZEROG_NETWORK: this.config.zeroG.network,
-        ZEROG_RPC_URL: this.config.zeroG.rpcUrl,
-        ZEROG_CHAIN_ID: String(this.config.zeroG.chainId || ""),
-        ZEROG_STORAGE_INDEXER_RPC: this.config.zeroG.storageIndexerRpc,
-        PRIVATE_AGENT_REGISTRY_ADDRESS: this.config.zeroG.agentRegistryAddress || "<registry-address>",
-        ZEROG_COMPUTE_API_KEY: "<user-runtime-0g-compute-api-key>",
-        ZEROG_COMPUTE_API_BASE: "<user-runtime-0g-compute-api-base>",
-        ZEROG_COMPUTE_MODEL: "<user-runtime-0g-compute-model>",
-        ZEROG_COMPUTE_REQUIRE_TEE: "false",
-      },
-    };
-
     return {
       manifestVersion: "2026-04-18",
       exportedAt: new Date().toISOString(),
@@ -832,26 +811,23 @@ export class StudioAgentService {
         ],
       },
       openclaw: {
-        docsVerified: {
-          transport: "stdio",
-          savedServerDefinitionFields: ["command", "args", "env", "cwd"],
-        },
-        preferredExecutionMode: "zerog_direct_api",
+        integrationMode: "hosted_api",
+        baseUrl,
+        manifestUrl: joinUrl(baseUrl, `/api/agents/${agent.id}/export-manifest`),
+        runEndpoint: joinUrl(baseUrl, `/api/agents/${agent.id}/runs`),
+        preferredExecutionMode: "auto",
         rationale:
-          "For OpenClaw-style local runtimes, direct 0G API mode avoids injecting a wallet private key into the runtime process. Broker mode remains possible but is operationally heavier.",
-        savedServerDefinition: openClawServerDefinition,
-        mcpSetExample: `openclaw mcp set private-agent-studio '${JSON.stringify(openClawServerDefinition)}'`,
-        directApiProfile: {
-          executionMode: "zerog_direct_api",
-          requiredRuntimeSecrets: ["ZEROG_COMPUTE_API_KEY", "ZEROG_COMPUTE_API_BASE", "ZEROG_COMPUTE_MODEL"],
+          "Use the hosted Private Agent Studio API for deployed runtime handoff. Local stdio MCP is a developer adapter, not the production handoff path.",
+        hostedApiProfile: {
+          credentialSource: "platform_managed",
+          executionMode: "auto",
+          requiredRuntimeSecrets: [],
         },
-        brokerProfile: {
-          executionMode: "zerog_broker",
-          requiredRuntimeSecrets: ["PRIVATE_KEY"],
-          notes: [
-            "Broker mode uses wallet-signed 0G Compute requests.",
-            "Use broker mode only when you want the runtime to manage its own 0G wallet and provider funding flow.",
-          ],
+        localMcpDeveloperAdapter: {
+          availableInRepository: true,
+          transport: "stdio",
+          command: "npm run mcp",
+          note: "Only use this when running the repository locally as an MCP server. The hosted API is the default product handoff.",
         },
       },
       activeAuthorizations: activeAuthorizations.map((authorization) => ({

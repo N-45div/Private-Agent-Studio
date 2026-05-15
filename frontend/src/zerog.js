@@ -141,8 +141,9 @@ export async function uploadJsonPackage({
   fileName,
   indexerRpc,
   rpcUrl,
+  storageNodeProxyBaseUrl,
 }) {
-  const { Blob: ZgBlob, Indexer } = await import("@0gfoundation/0g-ts-sdk");
+  const { Blob: ZgBlob, Indexer, StorageNode, selectNodes } = await import("@0gfoundation/0g-ts-sdk");
   const wallet = await createBrowserSigner();
   const json = JSON.stringify(payload, null, 2);
   const file = new File([json], fileName, {
@@ -155,8 +156,40 @@ export async function uploadJsonPackage({
     throw new Error(`Failed to prepare Merkle tree: ${treeError}`);
   }
 
-  const indexer = new Indexer(indexerRpc);
-  const [tx, uploadError] = await indexer.upload(blob, rpcUrl, wallet.signer);
+  class BrowserSafeIndexer extends Indexer {
+    async selectNodes(expectedReplica, method = "min") {
+      const [clients, error] = await super.selectNodes(expectedReplica, method);
+
+      if (error || !storageNodeProxyBaseUrl) {
+        return [clients, error];
+      }
+
+      const nodes = await this.getShardedNodes();
+      const [trusted, ok] = selectNodes(nodes.trusted, expectedReplica, method);
+      if (!ok) {
+        return [clients, error];
+      }
+
+      const proxiedClients = trusted.map((node) => {
+        const proxyUrl = `${storageNodeProxyBaseUrl.replace(/\/+$/, "")}/api/zerog/storage-node-proxy?url=${encodeURIComponent(node.url)}`;
+        return new StorageNode(proxyUrl);
+      });
+
+      return [proxiedClients, null];
+    }
+  }
+
+  const indexer = new BrowserSafeIndexer(indexerRpc);
+  const [tx, uploadError] = await indexer.upload(
+    blob,
+    rpcUrl,
+    wallet.signer,
+    {
+      onProgress(message) {
+        console.info(`[0G Storage] ${message}`);
+      },
+    },
+  );
 
   if (uploadError) {
     throw new Error(`0G Storage upload failed: ${uploadError}`);

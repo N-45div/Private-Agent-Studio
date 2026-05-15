@@ -1217,6 +1217,7 @@ export function StudioPage() {
         fileName: `${publishIntent.agentId}-package.json`,
         indexerRpc: publishIntent.targets.storageIndexerRpc,
         rpcUrl: publishIntent.targets.rpcUrl,
+        storageNodeProxyBaseUrl: api.baseUrl,
       });
 
       setWalletState({
@@ -1667,30 +1668,25 @@ export function StudioPage() {
     2,
   )}'`
     : "";
-  const mcpServerDefinition = exportManifest?.openclaw?.savedServerDefinition
+  const hostedRuntimeConfig = selectedAgent
     ? {
-        ...exportManifest.openclaw.savedServerDefinition,
-        cwd: "/absolute/path/to/agentvault/backend",
-        env: {
-          ...exportManifest.openclaw.savedServerDefinition.env,
-          ZEROG_COMPUTE_API_KEY: "<your-0g-compute-api-key-or-platform-managed-runtime>",
-          ZEROG_COMPUTE_API_BASE: "https://router-api.0g.ai/v1",
-          ZEROG_COMPUTE_MODEL: "0GM-1.0-35B-A3B",
-          ZEROG_COMPUTE_REQUIRE_TEE: "true",
-        },
+        integrationMode: "hosted_api",
+        apiBaseUrl: api.baseUrl,
+        agentId: selectedAgent.id,
+        manifestUrl,
+        runEndpoint: `${api.baseUrl}/api/agents/${selectedAgent.id}/runs`,
+        credentialSource: "platform_managed",
+        executionMode: "auto",
       }
     : null;
   const mcpRunPayload = selectedAgent
     ? {
-        tool: "studio.start_run",
-        arguments: {
-          agentId: selectedAgent.id,
-          objective: "Run the Board Research Capsule for a private strategy summary.",
-          runtime: {
-            credentialSource: "platform_managed",
-            executionMode: "auto",
-            providedSecretKeys: [],
-          },
+        agentId: selectedAgent.id,
+        objective: "Run the Board Research Capsule for a private strategy summary.",
+        runtime: {
+          credentialSource: "platform_managed",
+          executionMode: "auto",
+          providedSecretKeys: [],
         },
       }
     : null;
@@ -2548,8 +2544,8 @@ export function StudioPage() {
                       </div>
 
                       <CodeBlock label="API run command" value={apiRunCommand} />
-                      <CodeBlock label="MCP / OpenClaw server config" value={prettifyJson(mcpServerDefinition)} />
-                      <CodeBlock label="MCP run tool payload" value={prettifyJson(mcpRunPayload)} />
+                      <CodeBlock label="Hosted runtime config" value={prettifyJson(hostedRuntimeConfig)} />
+                      <CodeBlock label="OpenClaw / API run payload" value={prettifyJson(mcpRunPayload)} />
 
                       <div className="grid gap-4 md:grid-cols-2">
                         <a

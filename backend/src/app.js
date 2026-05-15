@@ -16,6 +16,116 @@ const {
   },
 } = createServiceContainer();
 
+const STORAGE_NODE_METHOD_PATTERN = /^zgs_[A-Za-z0-9_]+$/;
+
+function isBlockedProxyHost(hostname) {
+  const normalized = hostname.toLowerCase();
+  const ipv4Match = normalized.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (ipv4Match) {
+    const [, aRaw, bRaw] = ipv4Match;
+    const a = Number(aRaw);
+    const b = Number(bRaw);
+    return (
+      a === 10 ||
+      a === 127 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 169 && b === 254)
+    );
+  }
+
+  return (
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    normalized === "0.0.0.0" ||
+    normalized === "::1" ||
+    normalized.endsWith(".localhost")
+  );
+}
+
+async function getTrustedStorageNodeUrls() {
+  const response = await fetch(config.zeroG.storageIndexerRpc, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "indexer_getShardedNodes",
+      params: [],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`0G indexer returned ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const trusted = payload?.result?.trusted || [];
+  return new Set(
+    trusted
+      .map((node) => {
+        try {
+          return node?.url ? new URL(node.url).toString() : "";
+        } catch {
+          return "";
+        }
+      })
+      .filter(Boolean),
+  );
+}
+
+async function proxyStorageNodeRequest(request, response, targetUrl) {
+  let parsedTarget;
+  try {
+    parsedTarget = new URL(targetUrl);
+  } catch {
+    return sendJson(response, 400, {
+      error: "invalid_storage_node_url",
+      message: "Storage node URL is invalid",
+    });
+  }
+
+  if (!["http:", "https:"].includes(parsedTarget.protocol) || isBlockedProxyHost(parsedTarget.hostname)) {
+    return sendJson(response, 400, {
+      error: "storage_node_url_not_allowed",
+      message: "Storage node URL is not allowed",
+    });
+  }
+
+  const body = await readJson(request);
+  if (!STORAGE_NODE_METHOD_PATTERN.test(body?.method || "")) {
+    return sendJson(response, 400, {
+      error: "storage_node_method_not_allowed",
+      message: "Only 0G storage node JSON-RPC methods can be proxied",
+    });
+  }
+
+  const trustedNodeUrls = await getTrustedStorageNodeUrls();
+  if (!trustedNodeUrls.has(parsedTarget.toString())) {
+    return sendJson(response, 403, {
+      error: "storage_node_not_trusted",
+      message: "Storage node URL is not in the configured 0G indexer trusted set",
+    });
+  }
+
+  const upstream = await fetch(parsedTarget, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const text = await upstream.text();
+  applyCors(response);
+  response.writeHead(upstream.status, {
+    "Content-Type": upstream.headers.get("content-type") || "application/json; charset=utf-8",
+  });
+  response.end(text);
+}
+
 function jsonError(response, statusCode, error) {
   sendJson(response, statusCode, {
     error: error.code || "request_failed",
@@ -92,6 +202,15 @@ export async function handleRequest(request, response) {
       const probeDirectApi = url.searchParams.get("probe") === "true";
       const compute = await computeAdapter.getDiagnostics({ acknowledgeProviders, probeDirectApi });
       return sendJson(response, 200, { compute });
+    }
+
+    if (path === "/api/zerog/storage-node-proxy") {
+      if (request.method !== "POST") {
+        return methodNotAllowed(response, ["POST"]);
+      }
+
+      const targetUrl = url.searchParams.get("url") || "";
+      return proxyStorageNodeRequest(request, response, targetUrl);
     }
 
     if (path === "/api/agents") {
