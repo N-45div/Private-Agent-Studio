@@ -58,6 +58,15 @@ function joinUrl(baseUrl, pathname) {
   return `${baseUrl.replace(/\/+$/, "")}${pathname}`;
 }
 
+function toMcpSlug(value) {
+  const slug = String(value || "agent")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return slug || "agent";
+}
+
 export class StudioAgentService {
   constructor(store, config, storageAdapter, agentRegistryAdapter, auditService, templateService) {
     this.store = store;
@@ -735,6 +744,9 @@ export class StudioAgentService {
     const authorizations = agent.authorizations || [];
     const activeAuthorizations = authorizations.filter((authorization) => authorization.status === "active");
     const baseUrl = options.baseUrl || "";
+    const mcpSlug = toMcpSlug(agent.name);
+    const mcpEndpoint = joinUrl(baseUrl, `/api/agents/${agent.id}/mcp`);
+
     return {
       manifestVersion: "2026-04-18",
       exportedAt: new Date().toISOString(),
@@ -778,46 +790,60 @@ export class StudioAgentService {
         authorizations: joinUrl(baseUrl, `/api/agents/${agent.id}/authorizations`),
       },
       mcp: {
-        serverType: "stdio",
+        serverType: "agent_bound_streamable_http",
+        endpoint: mcpEndpoint,
+        readyMade: true,
+        clientConfig: {
+          mcpServers: {
+            [`${mcpSlug}-mcp`]: {
+              transport: "streamable_http",
+              url: mcpEndpoint,
+            },
+          },
+        },
         secretInjection: {
           supported: true,
-          ownershipModel: "runtime_owned_secrets",
-          requiredSecrets: agent.draftPackage?.requiredSecrets || [],
+          ownershipModel: "hosted_runtime_or_runtime_owned_secrets",
+          requiredSecrets: [],
         },
         toolCalls: [
           {
-            name: "studio.get_agent",
+            name: `${mcpSlug}.run`,
             arguments: {
-              agentId: agent.id,
+              objective: `Run ${agent.name} and return a concise private workflow summary.`,
+              audience: "operator",
+              tone: "concise",
             },
           },
           {
-            name: "studio.start_run",
+            name: `${mcpSlug}.summarize`,
             arguments: {
-              agentId: agent.id,
-              runtime: {
-                credentialSource: "user_runtime",
-                executionMode: "zerog_direct_api",
-                providedSecretKeys: ["ZEROG_COMPUTE_API_KEY"],
-              },
+              focus: "workflow, storage proof, registry proof, and recommended next actions",
+              audience: "operator",
             },
           },
           {
-            name: "studio.list_agent_runs",
-            arguments: {
-              agentId: agent.id,
-            },
+            name: `${mcpSlug}.evidence`,
+            arguments: {},
           },
         ],
+        resources: [
+          `private-agent-studio://${agent.id}/manifest`,
+          `private-agent-studio://${agent.id}/proof`,
+          `private-agent-studio://${agent.id}/runbook`,
+        ],
+        prompts: [`${mcpSlug}.private_brief`],
       },
       openclaw: {
-        integrationMode: "hosted_api",
+        integrationMode: "agent_bound_mcp_or_hosted_api",
         baseUrl,
         manifestUrl: joinUrl(baseUrl, `/api/agents/${agent.id}/export-manifest`),
         runEndpoint: joinUrl(baseUrl, `/api/agents/${agent.id}/runs`),
+        mcpEndpoint,
+        mcpServerName: `${mcpSlug}-mcp`,
         preferredExecutionMode: "auto",
         rationale:
-          "Use the hosted Private Agent Studio API for deployed runtime handoff. Local stdio MCP is a developer adapter, not the production handoff path.",
+          "Use the per-agent MCP endpoint when OpenClaw or another MCP client should invoke this exact published agent. Use the hosted API when the client only supports HTTP actions.",
         hostedApiProfile: {
           credentialSource: "platform_managed",
           executionMode: "auto",

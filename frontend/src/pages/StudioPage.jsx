@@ -130,6 +130,15 @@ function formatShortAddress(value) {
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
 }
 
+function toMcpSlug(value) {
+  const slug = String(value || "agent")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return slug || "agent";
+}
+
 function prettifyJson(value) {
   if (!value) {
     return "Unavailable";
@@ -1749,6 +1758,13 @@ export function StudioPage() {
   const manifestUrl = selectedAgent
     ? `${api.baseUrl}/api/agents/${selectedAgent.id}/export-manifest`
     : "";
+  const mcpEndpoint = selectedAgent
+    ? `${api.baseUrl}/api/agents/${selectedAgent.id}/mcp`
+    : "";
+  const mcpProfileUrl = selectedAgent
+    ? `${api.baseUrl}/api/agents/${selectedAgent.id}/mcp-profile`
+    : "";
+  const mcpSlug = selectedAgent ? toMcpSlug(selectedAgent.name) : "agent";
   const apiRunCommand = selectedAgent
     ? `curl -sS -X POST \\
   ${api.baseUrl}/api/agents/${selectedAgent.id}/runs \\
@@ -1777,6 +1793,57 @@ export function StudioPage() {
         executionMode: "auto",
       }
     : null;
+  const mcpClientConfig = selectedAgent
+    ? {
+        mcpServers: {
+          [`${mcpSlug}-mcp`]: {
+            transport: "streamable_http",
+            url: mcpEndpoint,
+          },
+        },
+      }
+    : null;
+  const mcpToolCallCommand = selectedAgent
+    ? `curl -sS -X POST \\
+  ${mcpEndpoint} \\
+  -H "accept: application/json, text/event-stream" \\
+  -H "content-type: application/json" \\
+  -H "mcp-protocol-version: 2025-03-26" \\
+  -d '${JSON.stringify(
+    {
+      jsonrpc: "2.0",
+      id: "run-1",
+      method: "tools/call",
+      params: {
+        name: `${mcpSlug}.run`,
+        arguments: {
+          objective: `Run ${selectedAgent.name} and return a concise private workflow summary.`,
+          audience: "operator",
+          tone: "concise",
+        },
+      },
+    },
+    null,
+    2,
+  )}'`
+    : "";
+  const mcpListToolsCommand = selectedAgent
+    ? `curl -sS -X POST \\
+  ${mcpEndpoint} \\
+  -H "accept: application/json, text/event-stream" \\
+  -H "content-type: application/json" \\
+  -H "mcp-protocol-version: 2025-03-26" \\
+  -d '${JSON.stringify(
+    {
+      jsonrpc: "2.0",
+      id: "tools-1",
+      method: "tools/list",
+      params: {},
+    },
+    null,
+    2,
+  )}'`
+    : "";
   const mcpRunPayload = selectedAgent
     ? {
         agentId: selectedAgent.id,
@@ -2610,8 +2677,8 @@ export function StudioPage() {
                         </div>
                         <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4">
                           <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">2 / MCP</div>
-                          <div className="mt-3 text-base font-semibold text-ink">Attach to a local runtime</div>
-                          <p className="mt-2 text-sm leading-6 text-muted">Use the MCP stdio server when OpenClaw or another MCP client should call Studio tools.</p>
+                          <div className="mt-3 text-base font-semibold text-ink">Attach to OpenClaw</div>
+                          <p className="mt-2 text-sm leading-6 text-muted">Each agent now gets an agent-bound MCP endpoint with run, manifest, and run-history tools.</p>
                         </div>
                         <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4">
                           <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-soft">3 / Proof</div>
@@ -2632,7 +2699,11 @@ export function StudioPage() {
 
                       <CodeBlock label="API run command" value={apiRunCommand} />
                       <CodeBlock label="Hosted runtime config" value={prettifyJson(hostedRuntimeConfig)} />
-                      <CodeBlock label="OpenClaw / API run payload" value={prettifyJson(mcpRunPayload)} />
+                      <CodeBlock label="Ready-made MCP client config" value={prettifyJson(mcpClientConfig)} />
+                      <CodeBlock label="MCP profile URL" value={mcpProfileUrl} />
+                      <CodeBlock label="MCP list tools" value={mcpListToolsCommand} />
+                      <CodeBlock label="Live MCP tool call" value={mcpToolCallCommand} />
+                      <CodeBlock label="OpenClaw / API fallback payload" value={prettifyJson(mcpRunPayload)} />
 
                       <div className="grid gap-4 md:grid-cols-2">
                         <a

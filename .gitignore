@@ -5,6 +5,7 @@ contracts/build
 contracts/.env
 backend/node_modules
 backend/.env
+data/
 frontend/node_modules
 frontend/dist
 frontend/.next
