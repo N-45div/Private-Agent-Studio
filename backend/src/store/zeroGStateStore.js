@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
-import { Batcher, Indexer, KvClient, getFlowContract } from "@0gfoundation/0g-ts-sdk";
+import { Batcher, Indexer, KvClient, getFlowContract } from "@0gfoundation/0g-storage-ts-sdk";
 import { JsonRpcProvider, Wallet } from "ethers";
 import { AppError } from "../lib/errors.js";
 import { normalizeState } from "./defaultState.js";

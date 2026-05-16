@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@0gfoundation/0g-storage-ts-sdk": "^1.2.9",
     "@0glabs/0g-serving-broker": "0.4.4",
-    "@0gfoundation/0g-ts-sdk": "1.2.1",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "dotenv": "^16.4.7",
     "ethers": "6.13.1",

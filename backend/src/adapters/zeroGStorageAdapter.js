@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { Indexer, ZgFile } from "@0gfoundation/0g-ts-sdk";
+import { Indexer, ZgFile } from "@0gfoundation/0g-storage-ts-sdk";
 import { JsonRpcProvider, Wallet } from "ethers";
 import { AppError } from "../lib/errors.js";
 
