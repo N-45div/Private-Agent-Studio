@@ -1,6 +1,12 @@
 import { AppError } from "../lib/errors.js";
 import { validateRunInput } from "../lib/validation.js";
 
+const TRACE_STORAGE_RETRY_DELAYS_MS = [2500, 7500, 15000];
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function buildPlannerPrompt(agent, runRequest) {
   return {
     systemPrompt:
@@ -102,6 +108,7 @@ export class WorkflowRunService {
     this.storageAdapter = storageAdapter;
     this.auditService = auditService;
     this.templateService = templateService;
+    this.traceSyncLock = Promise.resolve();
   }
 
   async getRun(runId) {
@@ -177,14 +184,6 @@ export class WorkflowRunService {
         executor: executorOutput.inference || null,
       };
 
-      let storageReceipt = {
-        rootHash: null,
-        txHash: null,
-      };
-      if (this.storageAdapter.canWriteDocuments()) {
-        storageReceipt = await this.storageAdapter.writeDocument("workflow-run-trace", tracePayload);
-      }
-
       const completedRun = await this.store.transaction((state) => {
         const existing = state.runs.find((item) => item.id === runId);
         if (!existing) {
@@ -201,13 +200,18 @@ export class WorkflowRunService {
         existing.delegatedTasks = delegatedTasks;
         existing.runtime = runRequest.runtime;
         existing.compute = computeSummary;
-        existing.storageRoot = storageReceipt.rootHash;
-        existing.storageTxHash = storageReceipt.txHash;
-        existing.tracePersistence =
-          storageReceipt.rootHash || storageReceipt.txHash ? "zerog_storage" : "local_only";
+        existing.storageRoot = null;
+        existing.storageTxHash = null;
+        existing.tracePersistence = this.storageAdapter.canWriteDocuments()
+          ? "zerog_storage_queued"
+          : "local_only";
         existing.updatedAt = new Date().toISOString();
         return existing;
       });
+
+      if (this.storageAdapter.canWriteDocuments()) {
+        this.queueTraceStorage(runId, tracePayload);
+      }
 
       await this.auditService.record("run.completed", agent.id, {
         runId,
@@ -233,5 +237,68 @@ export class WorkflowRunService {
 
       throw error;
     }
+  }
+
+  queueTraceStorage(runId, tracePayload) {
+    this.traceSyncLock = this.traceSyncLock
+      .then(async () => {
+        let storageReceipt = null;
+        let lastError = null;
+
+        for (let attempt = 0; attempt <= TRACE_STORAGE_RETRY_DELAYS_MS.length; attempt += 1) {
+          try {
+            storageReceipt = await this.storageAdapter.writeDocument(
+              "workflow-run-trace",
+              tracePayload,
+              {
+                finalityRequired: false,
+              },
+            );
+            break;
+          } catch (error) {
+            lastError = error;
+            const retryDelay = TRACE_STORAGE_RETRY_DELAYS_MS[attempt];
+            if (retryDelay === undefined) {
+              break;
+            }
+            console.warn(
+              `Workflow trace storage retry ${attempt + 1}/${TRACE_STORAGE_RETRY_DELAYS_MS.length} scheduled`,
+              error,
+            );
+            await delay(retryDelay);
+          }
+        }
+
+        if (!storageReceipt) {
+          throw lastError || new Error("Workflow trace storage failed");
+        }
+
+        await this.store.transaction((state) => {
+          const existing = state.runs.find((item) => item.id === runId);
+          if (!existing) {
+            return null;
+          }
+
+          existing.storageRoot = storageReceipt.rootHash;
+          existing.storageTxHash = storageReceipt.txHash;
+          existing.tracePersistence = "zerog_storage";
+          existing.updatedAt = new Date().toISOString();
+          return existing;
+        });
+      })
+      .catch((error) => {
+        console.error("Workflow trace background storage failed", error);
+        return this.store.transaction((state) => {
+          const existing = state.runs.find((item) => item.id === runId);
+          if (!existing) {
+            return null;
+          }
+
+          existing.tracePersistence = "zerog_storage_failed";
+          existing.traceStorageError = error.message;
+          existing.updatedAt = new Date().toISOString();
+          return existing;
+        });
+      });
   }
 }
