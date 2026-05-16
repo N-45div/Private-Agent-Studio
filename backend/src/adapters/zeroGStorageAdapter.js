@@ -39,7 +39,7 @@ export class ZeroGStorageAdapter {
     return this.indexer;
   }
 
-  async writeDocument(kind, payload) {
+  async writeDocument(kind, payload, uploadOptions = {}) {
     const tempPath = path.join(os.tmpdir(), `agentvault-${kind}-${randomUUID()}.json`);
     const body = JSON.stringify(
       {
@@ -71,6 +71,7 @@ export class ZeroGStorageAdapter {
         fileHandle,
         this.config.zeroG.rpcUrl,
         this.getSigner(),
+        uploadOptions,
       );
 
       if (uploadError) {

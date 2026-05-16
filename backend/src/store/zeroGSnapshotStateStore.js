@@ -36,6 +36,10 @@ export class ZeroGSnapshotStateStore {
     this.lastStateRoot = null;
     this.lastStateTxHash = null;
     this.lastReadSource = "uninitialized";
+    this.lastStateSyncStatus = "idle";
+    this.lastStateSyncError = null;
+    this.cachedState = null;
+    this.syncLock = Promise.resolve();
   }
 
   describe() {
@@ -48,6 +52,9 @@ export class ZeroGSnapshotStateStore {
       lastStateRoot: this.lastStateRoot,
       lastStateTxHash: this.lastStateTxHash,
       lastReadSource: this.lastReadSource,
+      lastStateSyncStatus: this.lastStateSyncStatus,
+      lastStateSyncError: this.lastStateSyncError,
+      syncMode: this.config.stateSnapshotSync,
       fallback: this.fallbackStore?.describe?.() || null,
     };
   }
@@ -103,6 +110,11 @@ export class ZeroGSnapshotStateStore {
   }
 
   async readState() {
+    if (this.cachedState) {
+      this.lastReadSource = "memory_cache";
+      return normalizeState(this.cachedState);
+    }
+
     if (!this.canUseZeroG()) {
       this.lastReadSource = "file_fallback";
       return this.fallbackStore.readState();
@@ -133,17 +145,11 @@ export class ZeroGSnapshotStateStore {
     }
   }
 
-  async writeState(state) {
-    const normalized = normalizeState(state);
-
-    if (!this.canUseZeroG()) {
-      await this.fallbackStore.writeState(normalized);
-      this.lastStateSyncAt = new Date().toISOString();
-      return;
-    }
-
+  async syncStateToZeroG(normalized) {
     const encryptedState = this.encryptState(normalized);
-    const upload = await this.storageAdapter.writeDocument("studio-state", encryptedState);
+    const upload = await this.storageAdapter.writeDocument("studio-state", encryptedState, {
+      finalityRequired: false,
+    });
     const stateHash = keccakJson({
       rootHash: upload.rootHash,
       createdAt: encryptedState.createdAt,
@@ -169,10 +175,44 @@ export class ZeroGSnapshotStateStore {
           workflowHash: stateHash,
         });
 
-    await this.fallbackStore.writeState(normalized);
     this.lastStateRoot = upload.rootHash;
     this.lastStateTxHash = tx.txHash;
     this.lastStateSyncAt = new Date().toISOString();
+    this.lastStateSyncStatus = "synced";
+    this.lastStateSyncError = null;
+  }
+
+  queueStateSync(normalized) {
+    this.lastStateSyncStatus = "queued";
+    this.syncLock = this.syncLock
+      .then(async () => {
+        this.lastStateSyncStatus = "syncing";
+        await this.syncStateToZeroG(normalized);
+      })
+      .catch((error) => {
+        this.lastStateSyncStatus = "failed";
+        this.lastStateSyncError = error.message;
+        console.error("0G snapshot state background sync failed", error);
+      });
+  }
+
+  async writeState(state) {
+    const normalized = normalizeState(state);
+    this.cachedState = normalized;
+
+    if (!this.canUseZeroG()) {
+      await this.fallbackStore.writeState(normalized);
+      this.lastStateSyncAt = new Date().toISOString();
+      return;
+    }
+
+    await this.fallbackStore.writeState(normalized);
+    if (this.config.stateSnapshotSync === "async") {
+      this.queueStateSync(normalized);
+      return;
+    }
+
+    await this.syncStateToZeroG(normalized);
   }
 
   async transaction(mutator) {

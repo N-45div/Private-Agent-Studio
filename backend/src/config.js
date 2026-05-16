@@ -38,6 +38,7 @@ export const config = {
   statePointerAgentId: process.env.PRIVATE_AGENT_STATE_POINTER_ID || "private-agent-studio-state",
   stateStreamId: process.env.PRIVATE_AGENT_STATE_STREAM_ID || "",
   stateEncryptionKey: process.env.PRIVATE_AGENT_STATE_ENCRYPTION_KEY || privateKey,
+  stateSnapshotSync: process.env.PRIVATE_AGENT_STATE_SYNC || (process.env.PORT ? "async" : "blocking"),
   zeroG: {
     network,
     chainId,
